@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gh-postplan: project write-up</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --surface: #101010;
+      --surface-2: #181818;
+      --border: #303030;
+      --text: #fff;
+      --muted: #aaa;
+      --green: #74e39a;
+      --blue: #79b8ff;
+      --amber: #f2c66d;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(100% - 32px, 980px); margin: 0 auto; padding: 40px 0 72px; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
+    h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; }
+    h1 { font-size: clamp(28px, 5vw, 44px); margin: 0 0 10px; }
+    h2 { font-size: 22px; margin: 40px 0 16px; }
+    h3 { font-size: 16px; margin: 0 0 8px; }
+    p { margin: 0 0 14px; }
+    a { color: var(--blue); }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { color: var(--green); }
+    pre {
+      margin: 12px 0 0;
+      padding: 16px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: #e8e8e8;
+      font-size: 13px;
+    }
+    ul { padding-left: 20px; margin: 10px 0 0; }
+    li + li { margin-top: 7px; }
+    .lede { max-width: 760px; color: #d6d6d6; font-size: 17px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .tag { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 18px; }
+    .card p { color: var(--muted); margin-bottom: 0; }
+    .status { border-left: 3px solid var(--green); }
+    .warning { border-left: 3px solid var(--amber); }
+    .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: stretch; }
+    .step { position: relative; padding: 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+    .step small { display: block; color: var(--muted); margin-top: 6px; }
+    .step:not(:last-child)::after { content: "→"; position: absolute; right: -9px; top: 50%; z-index: 2; color: var(--muted); background: var(--bg); transform: translateY(-50%); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; vertical-align: top; padding: 11px 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .number { color: var(--green); font-variant-numeric: tabular-nums; }
+    footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+    @media (max-width: 700px) {
+      main { width: min(100% - 24px, 980px); padding-top: 24px; }
+      .grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .step:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -15px; transform: translateX(-50%); }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>gh-postplan: project write-up</h1>
+      <p class="lede">A small command-line tool that publishes a local HTML file to GitHub Pages, returns a stable public URL, and keeps every older version accessible.</p>
+      <div class="meta">
+        <span class="tag">npm: gh-postplan@0.1.0</span>
+        <span class="tag">TypeScript</span>
+        <span class="tag">Node.js 22.18+</span>
+        <span class="tag">Bun development workflow</span>
+        <span class="tag">Zero runtime dependencies</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>What we built</h2>
+      <div class="grid">
+        <article class="card status">
+          <h3>One-command publishing</h3>
+          <p><code>npx gh-postplan publish ./draft.html</code> pushes HTML and prints a shareable URL.</p>
+        </article>
+        <article class="card status">
+          <h3>Version history</h3>
+          <p>Each changed publish creates a permanent numbered URL while the stable draft URL moves forward.</p>
+        </article>
+        <article class="card status">
+          <h3>Repository setup</h3>
+          <p>Setup can configure an existing repository or explicitly create a new public repository.</p>
+        </article>
+        <article class="card status">
+          <h3>Agent workflow</h3>
+          <p>The npm package includes a skill that teaches agents how to create, publish, and read safe HTML drafts.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Core workflow</h2>
+      <div class="flow" aria-label="Publish flow">
+        <div class="step"><strong>1. Read HTML</strong><small>Accept one regular .html file.</small></div>
+        <div class="step"><strong>2. Sync Git</strong><small>Pull the dedicated gh-pages branch.</small></div>
+        <div class="step"><strong>3. Version</strong><small>Write current and permanent copies.</small></div>
+        <div class="step"><strong>4. Verify</strong><small>Push, poll Pages, print the stable URL.</small></div>
+      </div>
+      <pre><code>npx gh-postplan setup owner/pages-repo --create
+npx gh-postplan publish ./draft.html
+
+# Stable URL
+https://owner.github.io/pages-repo/drafts/a1b2c3/
+
+# Permanent versions
+https://owner.github.io/pages-repo/drafts/a1b2c3/v1/
+https://owner.github.io/pages-repo/drafts/a1b2c3/v2/</code></pre>
+    </section>
+
+    <section>
+      <h2>Behavior and decisions</h2>
+      <table>
+        <thead><tr><th>Area</th><th>Decision</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>Draft identity</td><td>Short random ID, mapped from absolute source path locally</td><td>Repeat publishes keep one stable URL without exposing filenames.</td></tr>
+          <tr><td>Source of truth</td><td>The Pages repository determines the next version</td><td>Local state can be lost or stale without overwriting history.</td></tr>
+          <tr><td>Unchanged files</td><td>No new commit or version</td><td>Avoid empty history and pointless deployments.</td></tr>
+          <tr><td>Deployment</td><td>Branch-based Pages from <code>gh-pages</code></td><td>No workflow file or build service is needed for static HTML.</td></tr>
+          <tr><td>HTML policy</td><td>Publish bytes unchanged</td><td>The tool has one owner and does not pretend to be a security scanner.</td></tr>
+          <tr><td>Runtime</td><td>Compiled JavaScript with no runtime packages</td><td>Works through <code>npx</code> while TypeScript remains the source language.</td></tr>
+          <tr><td>Concurrency</td><td>Pull first, retry one rejected push</td><td>Covers two terminals without adding locks or a queue.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Commands</h2>
+      <pre><code># Configure an existing repository
+npx gh-postplan setup owner/pages-repo
+
+# Create and configure a new public repository
+npx gh-postplan setup owner/pages-repo --create
+
+# Publish or update the draft associated with this file
+npx gh-postplan publish ./draft.html
+
+# Force a separate draft ID
+npx gh-postplan publish ./draft.html --new
+
+# Reconnect a file after local state was lost
+npx gh-postplan publish ./draft.html --draft a1b2c3
+
+# Push without waiting for the public copy
+npx gh-postplan publish ./draft.html --no-wait</code></pre>
+    </section>
+
+    <section>
+      <h2>What shipped</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Package</h3>
+          <p><a href="https://www.npmjs.com/package/gh-postplan" target="_blank" rel="noopener noreferrer">gh-postplan@0.1.0 on npm</a>, published with the <code>latest</code> tag.</p>
+        </article>
+        <article class="card">
+          <h3>Verification</h3>
+          <p>Strict typecheck, three focused tests, bundled executable check, npm tarball install, and registry verification.</p>
+        </article>
+        <article class="card">
+          <h3>Package contents</h3>
+          <p>Compiled CLI, README, package manifest, and the bundled <code>gh-postplan</code> agent skill.</p>
+        </article>
+        <article class="card">
+          <h3>Credential handling</h3>
+          <p>The npm token is injected through a managed local environment. It is not stored in the package or repository.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Boundaries</h2>
+      <div class="grid">
+        <article class="card warning">
+          <h3>Published HTML is public</h3>
+          <p>GitHub Pages serves the rendered drafts publicly. Draft HTML must never contain credentials, private URLs, or confidential material.</p>
+        </article>
+        <article class="card">
+          <h3>Single-file input</h3>
+          <p>Only the HTML file is uploaded. Assets must be inline, data URLs, or already hosted at public absolute URLs.</p>
+        </article>
+        <article class="card">
+          <h3>Deliberate non-features</h3>
+          <p>No dashboard, deletion workflow, HTML sanitizer, custom backend, database, authentication service, or deployment action.</p>
+        </article>
+        <article class="card">
+          <h3>Current housekeeping</h3>
+          <p>The npm authentication config and environment ignore rule exist locally and still need a normal Git commit if they should be tracked.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      <p>Snapshot prepared after the first npm release. The project follows a simple rule: HTML in, stable public URL out.</p>
+    </footer>
+  </main>
+</body>
+</html>
