@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvid Chrome Extension Permission Audit</title>
+  <style>
+    :root { color-scheme: dark; --bg:#000; --panel:#121212; --line:#303030; --muted:#aaa; --good:#75d79b; --warn:#ffd166; --code:#181818; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:#fff; font:15px/1.55 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:min(960px,100%); margin:auto; padding:32px 20px 64px; }
+    h1 { margin:0 0 6px; font-size:clamp(26px,5vw,38px); line-height:1.15; }
+    h2 { margin:34px 0 12px; font-size:21px; }
+    h3 { margin:0; font-size:17px; }
+    p { margin:8px 0; }
+    .meta,.muted { color:var(--muted); }
+    .summary { margin:24px 0; padding:16px 18px; border:1px solid #705d20; background:#1b170a; border-radius:10px; }
+    .summary strong { color:var(--warn); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    article { padding:18px; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+    .tag { display:inline-block; margin:0 0 12px; padding:3px 8px; border-radius:999px; background:#183323; color:var(--good); font-size:12px; font-weight:700; }
+    .tag.cleanup { background:#3b300f; color:var(--warn); }
+    code { padding:2px 5px; border-radius:4px; background:var(--code); color:#eee; overflow-wrap:anywhere; }
+    pre { margin:12px 0 0; padding:13px; white-space:pre-wrap; overflow-wrap:anywhere; border-left:3px solid #555; background:#090909; color:#eee; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    ul { padding-left:20px; }
+    li + li { margin-top:8px; }
+    a { color:#8cc8ff; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+    @media (max-width:700px) { main{padding:24px 14px 48px}.grid{grid-template-columns:1fr} th:nth-child(2),td:nth-child(2){display:none} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Chrome Extension Permission Audit</h1>
+    <p class="meta">Canvid for SkoleTube · reviewed 2 September 2026 · read-only repository audit</p>
+  </header>
+
+  <section class="summary">
+    <strong>Recommended cleanup:</strong> remove <code>declarativeNetRequest</code> and keep <code>declarativeNetRequestWithHostAccess</code>. Chrome says they provide the same capability. The extension already has the Google Storage host permissions needed by its static rule, so declaring both is redundant.
+  </section>
+
+  <h2>What each permission does</h2>
+  <section class="grid">
+    <article>
+      <span class="tag cleanup">One permission can be removed</span>
+      <h3>declarativeNetRequest*</h3>
+      <p>A static rule adds CORS response headers to requests for <code>storage.googleapis.com</code>. It is limited to XMLHttpRequest and other resource types.</p>
+      <p class="muted">Call site: manifest static ruleset → <code>chrome-ext/rules/gcs-cors.json</code></p>
+      <pre>Used to add CORS response headers only to Google Cloud Storage requests required for Canvid media uploads and downloads.</pre>
+    </article>
+
+    <article>
+      <span class="tag">Used</span>
+      <h3>scripting</h3>
+      <p>Runs a Google Cloud Storage download in the main world of an existing Canvid web-app tab when extension-origin requests are blocked by bucket CORS.</p>
+      <p class="muted">Call site: <code>src/lib/extension-cross-origin-put.ts:175</code></p>
+      <pre>Used to execute a Google Cloud Storage download from the Canvid web application context when extension-origin requests are blocked by CORS. Scripts are injected only into Canvid application pages.</pre>
+    </article>
+
+    <article>
+      <span class="tag">Used</span>
+      <h3>unlimitedStorage</h3>
+      <p>Supports the extension's Origin Private File System storage for projects, recordings, media, and avatars. The app also requests persistent storage through <code>navigator.storage.persist()</code>.</p>
+      <p class="muted">Call site: <code>src/bridge-shim.ts:90</code></p>
+      <pre>Canvid stores video projects, recordings, media, and generated assets locally using the Origin Private File System. These files can exceed normal browser storage quotas and must be protected from automatic eviction.</pre>
+    </article>
+
+    <article>
+      <span class="tag">Used</span>
+      <h3>webRequest</h3>
+      <p>Observes completion status codes for Google Cloud Storage PUT requests when CORS hides an otherwise successful upload response. It does not inspect request bodies or modify traffic.</p>
+      <p class="muted">Call site: <code>chrome-ext/background.js:200</code></p>
+      <pre>Used only to observe completion status codes for uploads to Google Cloud Storage. This lets Canvid distinguish successful and resumable uploads when CORS prevents the extension from reading the response. Request bodies and browsing activity are not inspected.</pre>
+    </article>
+  </section>
+
+  <h2>Repository evidence</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Declared at</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td><code>declarativeNetRequest</code></td><td><code>chrome-ext/manifest.json:20</code></td><td>Static response-header rule in <code>chrome-ext/rules/gcs-cors.json</code></td></tr>
+      <tr><td><code>declarativeNetRequestWithHostAccess</code></td><td><code>chrome-ext/manifest.json:21</code></td><td>Same static rule and capability as above</td></tr>
+      <tr><td><code>scripting</code></td><td><code>chrome-ext/manifest.json:18</code></td><td><code>chrome.scripting.executeScript()</code> in <code>extension-cross-origin-put.ts:186</code></td></tr>
+      <tr><td><code>unlimitedStorage</code></td><td><code>chrome-ext/manifest.json:26</code></td><td>OPFS initialization and persistence request in <code>bridge-shim.ts:90–119</code></td></tr>
+      <tr><td><code>webRequest</code></td><td><code>chrome-ext/manifest.json:19</code></td><td><code>chrome.webRequest.onCompleted</code> in <code>background.js:200–244</code></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Before publishing</h2>
+  <ul>
+    <li>Remove <code>declarativeNetRequest</code> from the manifest, assuming no unpublished build step adds another DNR use.</li>
+    <li>Paste the three remaining justifications above into the Chrome Web Store Privacy practices tab.</li>
+    <li>Confirm the release version. The reviewed manifest currently declares <code>3.0.3</code>.</li>
+  </ul>
+
+  <h2>Chrome references</h2>
+  <ul>
+    <li><a href="https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest" target="_blank" rel="noopener noreferrer">Declarative Net Request API</a></li>
+    <li><a href="https://developer.chrome.com/docs/extensions/reference/api/webRequest" target="_blank" rel="noopener noreferrer">Web Request API</a></li>
+    <li><a href="https://developer.chrome.com/docs/extensions/develop/concepts/storage-and-cookies" target="_blank" rel="noopener noreferrer">Extension storage and persistence</a></li>
+  </ul>
+</main>
+</body>
+</html>
