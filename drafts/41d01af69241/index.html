@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvid PWA + Companion Extension MVP</title>
+  <style>
+    :root { color-scheme: dark; --bg:#000; --panel:#101010; --panel2:#181818; --line:#333; --text:#fff; --muted:#aaa; --good:#79e2a0; --warn:#ffd166; --blue:#8ec5ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.55 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { width:min(1060px,100%); margin:0 auto; padding:32px 20px 64px; }
+    h1 { margin:0 0 8px; font-size:clamp(26px,4vw,42px); line-height:1.1; letter-spacing:-.03em; }
+    h2 { margin:38px 0 12px; font-size:22px; letter-spacing:-.015em; }
+    h3 { margin:0 0 8px; font-size:16px; }
+    p { margin:8px 0; }
+    a { color:var(--blue); }
+    code { color:#e8e8e8; background:#202020; border:1px solid #363636; border-radius:5px; padding:1px 5px; font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    pre { overflow:auto; margin:10px 0 0; padding:14px; background:#090909; border:1px solid var(--line); border-radius:8px; color:#eee; }
+    pre code { border:0; padding:0; background:transparent; }
+    .lede { max-width:820px; color:#d4d4d4; font-size:17px; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 0; }
+    .pill { border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:5px 10px; color:#ddd; font-size:13px; }
+    .good { color:var(--good); }
+    .warn { color:var(--warn); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; }
+    .card p { color:#ccc; }
+    .diagram { background:#080808; border:1px solid var(--line); border-radius:10px; padding:12px; overflow:auto; }
+    table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); }
+    th,td { padding:10px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
+    th { color:#ddd; background:var(--panel2); font-size:13px; }
+    td { color:#ccc; }
+    tr:last-child td { border-bottom:0; }
+    ul,ol { padding-left:22px; }
+    li { margin:5px 0; }
+    .note { border-left:3px solid var(--warn); background:#17140b; padding:12px 14px; color:#e8dfc4; }
+    .small { color:var(--muted); font-size:13px; }
+    @media (max-width:720px) { main{padding:24px 14px 48px}.grid{grid-template-columns:1fr}th,td{padding:8px}table{font-size:13px}.diagram svg{min-width:760px} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Canvid PWA + Companion Extension MVP</h1>
+    <p class="lede">Canvid can now run as an installable hosted web app while delegating privileged Chrome APIs to a small companion extension. The existing Electron and full Chrome extension paths remain intact.</p>
+    <div class="meta">
+      <span class="pill good">MVP implemented</span>
+      <span class="pill">PWA build</span>
+      <span class="pill">Manifest V3 companion</span>
+      <span class="pill">Secure external messaging</span>
+      <span class="pill">Local dev workflow</span>
+    </div>
+  </header>
+
+  <h2>Decision</h2>
+  <div class="grid">
+    <section class="card">
+      <h3>App responsibility</h3>
+      <p>The hosted PWA owns React UI, media processing, project state, OPFS storage, network requests, and normal browser APIs.</p>
+    </section>
+    <section class="card">
+      <h3>Extension responsibility</h3>
+      <p>The companion owns only APIs unavailable to a normal web page: desktop capture selection, system information, and Chrome window control.</p>
+    </section>
+  </div>
+
+  <h2>Runtime architecture</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 980 350" width="100%" role="img" aria-label="The PWA sends typed action messages to the companion extension, which calls Chrome APIs and returns serializable results.">
+      <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#8ec5ff"/></marker></defs>
+      <rect x="25" y="35" width="285" height="275" rx="12" fill="#101010" stroke="#555"/>
+      <text x="50" y="70" fill="#fff" font-size="22" font-weight="700">Canvid PWA</text>
+      <text x="50" y="102" fill="#aaa" font-size="14">https:// app origin or localhost</text>
+      <text x="50" y="145" fill="#fff" font-size="15">React UI + browser bridge</text>
+      <text x="50" y="177" fill="#fff" font-size="15">OPFS project storage</text>
+      <text x="50" y="209" fill="#fff" font-size="15">Recording and processing</text>
+      <text x="50" y="241" fill="#fff" font-size="15">PWA manifest + service worker</text>
+      <rect x="380" y="35" width="260" height="275" rx="12" fill="#101010" stroke="#555"/>
+      <text x="405" y="70" fill="#fff" font-size="22" font-weight="700">Companion</text>
+      <text x="405" y="102" fill="#aaa" font-size="14">Manifest V3 service worker</text>
+      <text x="405" y="145" fill="#fff" font-size="15">Origin allowlist</text>
+      <text x="405" y="177" fill="#fff" font-size="15">Action validation</text>
+      <text x="405" y="209" fill="#fff" font-size="15">Sender tab and window scope</text>
+      <text x="405" y="241" fill="#fff" font-size="15">Serializable responses</text>
+      <rect x="710" y="35" width="245" height="275" rx="12" fill="#101010" stroke="#555"/>
+      <text x="735" y="70" fill="#fff" font-size="22" font-weight="700">Chrome APIs</text>
+      <text x="735" y="125" fill="#fff" font-size="15">desktopCapture</text>
+      <text x="735" y="162" fill="#fff" font-size="15">system.display</text>
+      <text x="735" y="199" fill="#fff" font-size="15">system.cpu / memory</text>
+      <text x="735" y="236" fill="#fff" font-size="15">windows</text>
+      <path d="M310 150 C340 150 350 150 378 150" stroke="#8ec5ff" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+      <text x="315" y="137" fill="#8ec5ff" font-size="12">sendMessage</text>
+      <path d="M640 180 C670 180 680 180 708 180" stroke="#8ec5ff" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+      <path d="M708 260 C680 260 670 260 642 260" stroke="#79e2a0" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+      <text x="655" y="285" fill="#79e2a0" font-size="12">result</text>
+    </svg>
+  </div>
+
+  <h2>Implemented bridge actions</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Purpose</th><th>Scope and safety</th></tr></thead>
+    <tbody>
+      <tr><td><code>ping</code></td><td>Startup handshake and extension presence check.</td><td>PWA will show an extension-required screen if the call fails.</td></tr>
+      <tr><td><code>choose-desktop-media</code></td><td>Opens Chrome's screen, window, or tab picker.</td><td>Bound to the external message sender tab.</td></tr>
+      <tr><td><code>system-display</code></td><td>Returns display geometry and scaling.</td><td>Read-only system API.</td></tr>
+      <tr><td><code>system-cpu</code> / <code>system-memory</code></td><td>Returns browser-visible device information.</td><td>Read-only system APIs.</td></tr>
+      <tr><td><code>minimize-current-window</code></td><td>Minimizes Canvid when recording starts.</td><td>Can only target the sender tab's window.</td></tr>
+      <tr><td><code>get-current-window</code></td><td>Detects restoration and preserves recording auto-stop behavior.</td><td>Can only read the sender tab's window.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Build and development workflow</h2>
+  <div class="grid">
+    <section class="card">
+      <h3>Local development</h3>
+      <pre><code>pnpm dev:pwa</code></pre>
+      <p>This first rebuilds the localhost companion, then starts the PWA at <code>127.0.0.1:5173</code>. Load <code>dist-companion</code> as an unpacked extension and reload it after service-worker changes.</p>
+    </section>
+    <section class="card">
+      <h3>Production artifacts</h3>
+      <pre><code>pnpm build:pwa
+pnpm build:companion-ext</code></pre>
+      <p>The artifacts are written separately to <code>dist-pwa</code> and <code>dist-companion</code>, so neither package accidentally contains the other.</p>
+    </section>
+  </div>
+
+  <h2>Identity and connection rules</h2>
+  <ol>
+    <li>The companion manifest contains a stable public key, which gives unpacked development builds a deterministic extension ID.</li>
+    <li>The PWA calls that exact extension ID. A Web Store ID can replace it through <code>VITE_COMPANION_EXTENSION_ID</code>.</li>
+    <li><code>externally_connectable.matches</code> limits which PWA origin can call the extension.</li>
+    <li>Local development uses <code>http://127.0.0.1/*</code>. Production uses the configured HTTPS app hostname.</li>
+    <li>The extension cannot initiate first contact. Canvid performs the handshake during startup.</li>
+  </ol>
+
+  <h2>Problems found during the MVP</h2>
+  <table>
+    <thead><tr><th>Failure</th><th>Root cause</th><th>Resolution</th></tr></thead>
+    <tbody>
+      <tr><td>Missing-extension screen crashed.</td><td>It rendered <code>Trans</code> before the normal app providers loaded.</td><td>Load the current locale and wrap the standalone screen with <code>I18nProvider</code>.</td></tr>
+      <tr><td>Installed extension was not detected.</td><td>The dev PWA had no extension ID, and the companion allowlist did not include localhost.</td><td>Stable dev ID, automatic dev companion build, and a localhost origin match.</td></tr>
+      <tr><td><code>getManifest is not a function</code>.</td><td>Web pages get a limited <code>chrome.runtime</code> surface, not the full extension runtime.</td><td>Feature-detect <code>getManifest</code> and fall back to the web version label.</td></tr>
+      <tr><td><code>chrome.windows.getCurrent</code> was undefined.</td><td>Recording code called an extension-only API directly from the PWA.</td><td>Route minimize and restore polling through the companion.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Verification</h2>
+  <ul>
+    <li>PWA production build completes.</li>
+    <li>Companion production and localhost builds complete.</li>
+    <li>Companion messaging checks pass, including a runtime with messaging but no <code>chrome.windows</code>.</li>
+    <li>Browser bridge checks pass, including a runtime with messaging but no <code>getManifest</code>.</li>
+    <li>Latest focused test run: <strong>17/17 passing</strong>.</li>
+  </ul>
+
+  <h2>Known MVP limits</h2>
+  <div class="note">
+    <strong>This is a connected PWA, not a standalone web-only recorder.</strong> Users must install both the PWA and companion extension. The PWA cannot install the extension silently.
+  </div>
+  <ul>
+    <li>The service worker establishes installability but does not cache the full app for offline use.</li>
+    <li>Extension service-worker changes require reloading the unpacked extension during development.</li>
+    <li>The production extension ID and final hosted origin must be set as part of release packaging.</li>
+    <li>Chrome Web Store packaging, install guidance, update rollout, and end-to-end release automation remain follow-up work.</li>
+  </ul>
+
+  <h2>Recommended next slice</h2>
+  <ol>
+    <li>Exercise one complete recording in PWA mode: choose source, record, restore, stop, edit, export.</li>
+    <li>Add an install link and clearer recovery UI to the extension-required screen.</li>
+    <li>Publish a private/unlisted companion build and lock the production origin and ID.</li>
+    <li>Only then decide whether offline asset caching is worth its update complexity.</li>
+  </ol>
+
+  <p class="small">Reference: <a href="https://developer.chrome.com/docs/iwa/connect-to-extensions" target="_blank" rel="noopener noreferrer">Chrome: Connect PWAs and IWAs with Chrome Extensions</a>.</p>
+</main>
+</body>
+</html>
