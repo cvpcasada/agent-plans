@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screenshot Editor: Windows Shape Label Export Investigation</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --surface: #111;
+      --surface-2: #191919;
+      --line: #333;
+      --text: #fff;
+      --muted: #aaa;
+      --blue: #6db6ff;
+      --green: #76d39b;
+      --amber: #ffd166;
+      --red: #ff8585;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1040px, 100%);
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+    }
+
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin: 0 0 10px; font-size: clamp(24px, 4vw, 36px); }
+    h2 { margin: 36px 0 14px; font-size: 21px; }
+    h3 { margin: 22px 0 8px; font-size: 16px; }
+    p { margin: 8px 0 14px; }
+    ul, ol { margin: 8px 0 16px; padding-left: 24px; }
+    li + li { margin-top: 6px; }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    code {
+      color: #d8ecff;
+      background: #171717;
+      border: 1px solid #292929;
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 10px 0 18px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: #e7e7e7;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    pre code { padding: 0; border: 0; background: transparent; color: inherit; }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+    }
+
+    .tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      background: var(--surface);
+      font-size: 12px;
+    }
+
+    .summary {
+      border-left: 4px solid var(--amber);
+      background: var(--surface);
+      padding: 14px 16px;
+      margin: 20px 0 26px;
+    }
+
+    .summary strong { color: var(--amber); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 14px 0 20px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 14px 16px;
+      min-width: 0;
+    }
+
+    .card h3 { margin-top: 0; }
+    .good { color: var(--green); }
+    .warn { color: var(--amber); }
+    .bad { color: var(--red); }
+    .muted { color: var(--muted); }
+
+    .flow {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin: 14px 0 22px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 20px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: var(--surface-2); }
+    td { background: var(--surface); }
+
+    .checklist { list-style: none; padding-left: 0; }
+    .checklist li { padding-left: 27px; position: relative; }
+    .checklist li::before {
+      content: "□";
+      position: absolute;
+      left: 0;
+      color: var(--blue);
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    footer {
+      margin-top: 44px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 22px 16px 48px; }
+      .grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+      th, td { min-width: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Screenshot Editor: Windows Shape Label Export Investigation</h1>
+      <p class="muted">Agent handoff report for reproducing and fixing a preview versus export text mismatch.</p>
+      <div class="meta">
+        <span class="tag">Status: needs Windows reproduction</span>
+        <span class="tag">Area: screenshot-editor</span>
+        <span class="tag">Likely cause: subpixel text metrics</span>
+        <span class="tag">macOS: not reproduced</span>
+      </div>
+    </header>
+
+    <section class="summary">
+      <strong>Bottom line:</strong> the preview uses browser DOM text while the export uses Pixi <code>HTMLText</code> rendered through SVG. The label has only about <strong>0.508 px</strong> of spare wrapping width on macOS. A small Windows font-metric difference can wrap the final word even though the black label box keeps the preview dimensions.
+    </section>
+
+    <section>
+      <h2>Problem</h2>
+      <p>Shape-label text fits inside its black label box in the editor preview, but can wrap or overflow after exporting the image.</p>
+      <div class="grid">
+        <article class="card">
+          <h3 class="good">Preview</h3>
+          <p>The full label stays on one line:</p>
+          <pre><code>This is another sample of a text</code></pre>
+        </article>
+        <article class="card">
+          <h3 class="bad">Windows export</h3>
+          <p>The final word wraps below the fixed-height black box:</p>
+          <pre><code>This is another sample of a
+text</code></pre>
+        </article>
+      </div>
+      <p>The issue appears platform-specific. The same flow did not fail in <code>dev:browser</code> on macOS.</p>
+    </section>
+
+    <section>
+      <h2>Reproduction</h2>
+      <pre><code>corepack pnpm --dir desktop dev:browser</code></pre>
+      <ol>
+        <li>Open the displayed <code>/screenshot-editor</code> URL.</li>
+        <li>Load the demo screenshot.</li>
+        <li>Draw a tapered arrow.</li>
+        <li>Add a shape label at either endpoint.</li>
+        <li>Enter exactly <code>This is another sample of a text</code>.</li>
+        <li>Export immediately after editing.</li>
+        <li>Compare the editor preview with the exported PNG.</li>
+        <li>Repeat at editor zoom levels around 32%, 76%, and 100%.</li>
+        <li>Repeat for both the start and end labels.</li>
+      </ol>
+      <p><strong>Expected:</strong> the label remains on one line in both preview and export.</p>
+      <p><strong>Reported Windows result:</strong> the exported text wraps while the black box retains its preview dimensions.</p>
+    </section>
+
+    <section>
+      <h2>Rendering seam</h2>
+      <svg class="flow" viewBox="0 0 960 250" role="img" aria-labelledby="flow-title flow-desc">
+        <title id="flow-title">Preview and export text rendering flow</title>
+        <desc id="flow-desc">The browser DOM measures the label and feeds shared geometry to both the preview and Pixi export. Pixi independently lays out the text inside SVG, creating a platform-dependent measurement seam.</desc>
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#6db6ff"></path>
+          </marker>
+        </defs>
+        <rect x="30" y="55" width="205" height="120" rx="8" fill="#191919" stroke="#555"></rect>
+        <text x="50" y="88" fill="#fff" font-size="18" font-family="sans-serif">Browser DOM</text>
+        <text x="50" y="118" fill="#aaa" font-size="14" font-family="sans-serif">Measures label with</text>
+        <text x="50" y="141" fill="#aaa" font-size="14" font-family="monospace">getBoundingClientRect()</text>
+
+        <line x1="235" y1="115" x2="355" y2="115" stroke="#6db6ff" stroke-width="3" marker-end="url(#arrow)"></line>
+
+        <rect x="365" y="55" width="230" height="120" rx="8" fill="#191919" stroke="#555"></rect>
+        <text x="385" y="88" fill="#fff" font-size="18" font-family="sans-serif">Shared render plan</text>
+        <text x="385" y="118" fill="#aaa" font-size="14" font-family="sans-serif">Box width is rounded</text>
+        <text x="385" y="141" fill="#ffd166" font-size="14" font-family="sans-serif">Only ~0.508 px spare</text>
+
+        <line x1="595" y1="115" x2="715" y2="115" stroke="#6db6ff" stroke-width="3" marker-end="url(#arrow)"></line>
+
+        <rect x="725" y="55" width="205" height="120" rx="8" fill="#191919" stroke="#555"></rect>
+        <text x="745" y="88" fill="#fff" font-size="18" font-family="sans-serif">Pixi HTMLText</text>
+        <text x="745" y="118" fill="#aaa" font-size="14" font-family="sans-serif">Lays text out again</text>
+        <text x="745" y="141" fill="#ff8585" font-size="14" font-family="sans-serif">SVG metrics may differ</text>
+
+        <text x="30" y="216" fill="#aaa" font-size="13" font-family="sans-serif">The box follows the DOM measurement. Export text follows a second layout engine.</text>
+      </svg>
+    </section>
+
+    <section>
+      <h2>Relevant code</h2>
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Why it matters</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>desktop/packages/renderer/src/screens/screenshot-editor/components/editor/elements/text-rendering.ts</code></td>
+            <td>Builds DOM and Pixi styles, measures the hidden DOM label, and creates the shared render plan.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/packages/renderer/src/screens/screenshot-editor/components/editor/elements/text.tsx</code></td>
+            <td>Applies the shared metrics to the preview and export nodes.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/packages/renderer/src/screens/screenshot-editor/lib/editor-export.ts</code></td>
+            <td>Warms the hidden export scene and waits for Pixi HTMLText texture promises.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/node_modules/pixi.js/lib/scene/text-html/utils/measureHtmlText.js</code></td>
+            <td>Measures XHTML inside SVG using integer <code>scrollWidth</code> and <code>scrollHeight</code>.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/node_modules/pixi.js/lib/scene/text-html/utils/getSVGUrl.js</code></td>
+            <td>Serializes the separate SVG <code>foreignObject</code> used for rasterization.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/node_modules/pixi.js/lib/scene/text-html/HTMLTextPipe.js</code></td>
+            <td>Handles asynchronous HTMLText texture generation.</td>
+          </tr>
+          <tr>
+            <td><code>desktop/node_modules/pixi.js/lib/scene/text-html/utils/getFontCss.js</code></td>
+            <td>Embeds cached fonts. Generic <code>sans-serif</code> does not have an explicit embedded font.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Measured evidence</h2>
+      <p>On macOS, the exact label measured:</p>
+      <pre><code>outer width:   353.4921875 px
+outer height:  46 px
+font:          24px / 34px sans-serif
+maximum width: 480 px</code></pre>
+      <p>The code rounds the outer width to <code>354px</code>, then subtracts <code>20px</code> of horizontal label chrome. The export wrapping width becomes <code>334px</code>.</p>
+      <pre><code>334 - 333.4921875 = 0.5078125 px spare</code></pre>
+      <p>That is a very narrow margin. If Windows or SVG measures the text just over half a pixel wider, the final word wraps. This points to a measurement-boundary bug, not missing letter spacing.</p>
+    </section>
+
+    <section>
+      <h2>Ranked hypotheses</h2>
+      <ol>
+        <li><strong>Most likely:</strong> Windows DOM and Pixi SVG/HTMLText metrics differ by more than the available ~0.5px.</li>
+        <li><strong>Less likely:</strong> export captures a stale asynchronous HTMLText texture immediately after editing.</li>
+        <li><strong>Mostly ruled out:</strong> preview and export use different placement geometry. They share one render plan, and the reported box placement looks correct.</li>
+      </ol>
+      <p>The immediate-edit-then-export case worked on macOS. The export code also waits for HTMLText texture promises, which makes the stale-texture theory weaker.</p>
+    </section>
+
+    <section>
+      <h2>Windows evidence to capture before editing</h2>
+      <ul class="checklist">
+        <li><code>window.devicePixelRatio</code></li>
+        <li><code>getBoundingClientRect()</code> for the hidden label measurement element</li>
+        <li>Calculated outer width and content <code>wordWrapWidth</code></li>
+        <li>Computed <code>font-family</code>, <code>font-size</code>, <code>font-weight</code>, and <code>line-height</code></li>
+        <li>Whether waiting for <code>document.fonts.ready</code> changes the result</li>
+        <li>Whether waiting one second before export changes the result</li>
+        <li>Whether adding 1px or 2px to only the export wrapping width prevents wrapping</li>
+        <li>The actual default <code>sans-serif</code> font used by DOM and Pixi SVG</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Smallest likely fix</h2>
+      <p>If Windows confirms the subpixel-width hypothesis, give exported <code>HTMLText</code> a 1 to 2 source-pixel wrapping tolerance while leaving the black box geometry unchanged.</p>
+      <p>The label already has 8px of internal padding, so the tolerance can borrow from that padding without visibly enlarging the box.</p>
+      <p>Keep the change inside <code>buildShapeLabelHtmlStyle</code>. Do not add a second measurement system or refactor the renderer unless the Windows measurements disprove this diagnosis.</p>
+      <p>Add one focused test that confirms:</p>
+      <ul>
+        <li>export text receives the tolerance;</li>
+        <li>preview and box geometry remain unchanged.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Existing verification</h2>
+      <pre><code>corepack pnpm --dir desktop exec vitest --run --silent=false \
+  packages/renderer/src/screens/screenshot-editor/components/editor/elements/text.test.ts \
+  packages/renderer/src/screens/screenshot-editor/components/editor/elements/text-node.test.ts \
+  packages/renderer/src/screens/screenshot-editor/lib/editor-export.test.ts</code></pre>
+      <p class="good"><strong>Current result:</strong> 3 test files passed, 17 tests passed.</p>
+      <p>Manual macOS checks passed at 32% and 100% zoom, for both label anchors, including an immediate edit followed by save.</p>
+    </section>
+
+    <section>
+      <h2>History</h2>
+      <table>
+        <thead>
+          <tr><th>Commit</th><th>Change</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>f5007ace</code></td>
+            <td><code>feat(screenshot-editor): improved text editing capabilities (#2110)</code><br>Introduced the DOM preview and Pixi HTMLText export paths.</td>
+          </tr>
+          <tr>
+            <td><code>143dadf3</code></td>
+            <td><code>feat(screenshot-editor): place shape labels automatically (#2307)</code><br>Kept the shared render-plan approach for automatic placement.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>No later fix for this platform-specific measurement seam was found.</p>
+    </section>
+
+    <section>
+      <h2>Definition of done</h2>
+      <ul class="checklist">
+        <li>Reproduce the mismatch on Windows before patching.</li>
+        <li>Confirm whether 1 to 2px of export-only width tolerance fixes it.</li>
+        <li>Exported labels match the preview at both endpoints and multiple zoom levels.</li>
+        <li>Existing focused tests pass.</li>
+        <li>Add only the smallest regression check needed.</li>
+      </ul>
+    </section>
+
+    <footer>
+      Prepared from a macOS <code>dev:browser</code> investigation. No repository files were changed during diagnosis.
+    </footer>
+  </main>
+</body>
+</html>
