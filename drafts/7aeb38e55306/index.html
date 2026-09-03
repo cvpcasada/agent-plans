@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR #2413 release-v3 merge report</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --surface: #111;
+      --surface-2: #191919;
+      --border: #333;
+      --text: #fff;
+      --muted: #aaa;
+      --green: #71e59b;
+      --yellow: #ffd166;
+      --blue: #79b8ff;
+      --red: #ff7b72;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); color: var(--text); }
+    body {
+      margin: 0;
+      font: 15px/1.55 var(--sans);
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 72px;
+    }
+    h1, h2, h3 { line-height: 1.2; margin: 0; }
+    h1 { font-size: clamp(28px, 5vw, 44px); letter-spacing: -0.03em; }
+    h2 { font-size: 22px; margin-top: 42px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 16px; margin-bottom: 8px; }
+    p { margin: 10px 0; }
+    ul, ol { margin: 10px 0 0; padding-left: 22px; }
+    li + li { margin-top: 6px; }
+    code, pre { font-family: var(--mono); }
+    code { color: #d7eaff; }
+    pre {
+      margin: 12px 0 0;
+      padding: 16px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #090909;
+      color: #e8e8e8;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    strong { color: #fff; }
+    .muted { color: var(--muted); }
+    .eyebrow {
+      margin-bottom: 10px;
+      color: var(--green);
+      font: 700 12px/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lede { max-width: 820px; margin-top: 14px; color: #d6d6d6; font-size: 18px; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 28px;
+    }
+    .stat, .card, .note {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .stat { padding: 14px; }
+    .stat b { display: block; font: 700 18px/1.2 var(--mono); color: var(--green); }
+    .stat span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .card { padding: 16px; }
+    .card p:last-child { margin-bottom: 0; }
+    .note { margin-top: 14px; padding: 14px 16px; }
+    .note.good { border-color: #245f39; background: #07150c; }
+    .note.warn { border-color: #6a5720; background: #171304; }
+    .note.bad { border-color: #6c2e2e; background: #180808; }
+    .label {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font: 700 11px/1.5 var(--mono);
+      text-transform: uppercase;
+    }
+    .steps { counter-reset: runbook; list-style: none; padding: 0; }
+    .steps > li {
+      position: relative;
+      margin: 18px 0 0;
+      padding: 0 0 0 48px;
+    }
+    .steps > li::before {
+      counter-increment: runbook;
+      content: counter(runbook);
+      position: absolute;
+      left: 0;
+      top: -2px;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--green);
+      font: 700 13px/1 var(--mono);
+    }
+    .steps h3 { padding-top: 3px; }
+    .checks {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .checks th, .checks td { padding: 11px 12px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+    .checks th { background: var(--surface-2); color: var(--muted); font: 700 11px/1.4 var(--mono); text-transform: uppercase; }
+    .checks td:first-child { white-space: nowrap; }
+    .ok { color: var(--green); font-weight: 700; }
+    .flow {
+      margin-top: 16px;
+      padding: 14px;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #080808;
+    }
+    .flow svg { display: block; width: 100%; min-width: 760px; height: auto; }
+    .hashes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .hash { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: #090909; }
+    .hash span { display: block; color: var(--muted); font-size: 12px; }
+    .hash code { display: block; margin-top: 5px; word-break: break-all; color: var(--green); }
+    footer { margin-top: 50px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 760px) {
+      main { width: min(100% - 22px, 1080px); padding-top: 24px; }
+      .summary, .grid, .hashes { grid-template-columns: 1fr; }
+      .steps > li { padding-left: 42px; }
+      .checks { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Release merge runbook and incident report</div>
+      <h1>PR #2413 into <code>release-v3</code></h1>
+      <p class="lede">How we resolved a conflict caused by squash-release history, kept <code>main</code> as the definitive codebase, passed the deployment gate, and landed the release as one squash commit.</p>
+
+      <section class="summary" aria-label="Outcome summary">
+        <div class="stat"><b>MERGED</b><span>Final PR state</span></div>
+        <div class="stat"><b>8ad8eb094</b><span>Release squash commit</span></div>
+        <div class="stat"><b>0 files</b><span>Changed by reconciliation</span></div>
+        <div class="stat"><b>Exact match</b><span>Main and release tree</span></div>
+      </section>
+    </header>
+
+    <section>
+      <h2>The short version</h2>
+      <p><code>release-v3</code> contained the previous release as a squash commit. <code>main</code> contained the same code through its original commits. The files were logically related, but Git saw different histories and reported conflicts.</p>
+      <p>Because <code>main</code> was explicitly authoritative, we did not merge file contents from <code>release-v3</code>. We added a no-content merge commit to <code>main</code> using Git's <code>ours</code> merge strategy. That recorded the release branch as merged while keeping the <code>main</code> tree byte-for-byte unchanged.</p>
+      <div class="note good"><strong>Result:</strong> GitHub could calculate a clean merge, PR #2413 was squash-merged, and the final <code>release-v3</code> tree exactly matched the PR head.</div>
+    </section>
+
+    <section>
+      <h2>Why the conflict existed</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>What Git saw</h3>
+          <ul>
+            <li><code>main</code> and <code>release-v3</code> shared merge base <code>2e3953aa</code>.</li>
+            <li><code>main</code> had 215 commits not in <code>release-v3</code>.</li>
+            <li><code>release-v3</code> had 2 commits not in <code>main</code>.</li>
+            <li>The previous 3.1.0 release was represented by a new squash commit on <code>release-v3</code>.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>What humans knew</h3>
+          <ul>
+            <li>The previous release code already existed on <code>main</code>.</li>
+            <li>The different commit IDs came from squash merging, not unique release work that needed preservation.</li>
+            <li>For 3.1.1, the complete <code>main</code> tree was the intended release.</li>
+            <li>Any content-level blend with the old release tree would be wrong.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="flow" aria-label="Git history flow">
+        <svg viewBox="0 0 960 255" role="img" aria-labelledby="flow-title flow-desc">
+          <title id="flow-title">Release conflict and reconciliation flow</title>
+          <desc id="flow-desc">Main and release-v3 diverged after the previous squash release. A no-content merge recorded ancestry, then the new release was squash merged.</desc>
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#777"/></marker>
+          </defs>
+          <style>
+            .box{fill:#111;stroke:#3b3b3b;stroke-width:1.5}.main{stroke:#79b8ff}.release{stroke:#71e59b}.label{fill:#fff;font:600 14px system-ui}.sub{fill:#aaa;font:12px ui-monospace,monospace}.line{stroke:#777;stroke-width:2;fill:none;marker-end:url(#arrow)}.branch{stroke:#555;stroke-width:2;fill:none}
+          </style>
+          <rect class="box" x="30" y="96" width="170" height="60" rx="8"/>
+          <text class="label" x="48" y="120">Shared history</text><text class="sub" x="48" y="142">2e3953aa</text>
+          <path class="branch" d="M200 126 H258 M258 126 V60 M258 126 V196"/>
+          <rect class="box main" x="285" y="28" width="210" height="64" rx="8"/>
+          <text class="label" x="303" y="53">main</text><text class="sub" x="303" y="75">565e0fa6, authoritative</text>
+          <rect class="box release" x="285" y="164" width="210" height="64" rx="8"/>
+          <text class="label" x="303" y="189">release-v3</text><text class="sub" x="303" y="211">bb1fb440, prior squash</text>
+          <path class="line" d="M495 60 H560"/>
+          <path class="line" d="M495 196 C535 196 525 105 560 92"/>
+          <rect class="box main" x="585" y="55" width="210" height="74" rx="8"/>
+          <text class="label" x="603" y="80">No-content merge</text><text class="sub" x="603" y="101">469224685, tree unchanged</text>
+          <path class="line" d="M795 92 H830 C854 92 854 162 830 162 H805"/>
+          <rect class="box release" x="585" y="151" width="210" height="74" rx="8"/>
+          <text class="label" x="603" y="176">Squash PR #2413</text><text class="sub" x="603" y="198">8ad8eb094, exact main tree</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <h2>The exact process</h2>
+      <ol class="steps">
+        <li>
+          <h3>Pin the live PR and remote branches</h3>
+          <p>Confirm the PR really targets <code>release-v3</code> from <code>main</code>. Record both remote commit IDs before changing anything.</p>
+          <pre><code>gh pr view 2413 --json baseRefName,baseRefOid,headRefName,headRefOid,mergeable,mergeStateStatus
+git fetch --prune origin main release-v3
+git rev-parse origin/main origin/release-v3</code></pre>
+          <div class="note warn"><strong>Stop if either branch moves.</strong> Re-fetch and redo the comparison. Do not resolve against stale refs.</div>
+        </li>
+
+        <li>
+          <h3>Prove the conflict is ancestry, not unique release code</h3>
+          <p>Inspect divergence and the release-only commits. For this PR, the release-only code was the previous squash release, while <code>main</code> was explicitly declared definitive.</p>
+          <pre><code>git merge-base origin/main origin/release-v3
+git rev-list --left-right --count origin/release-v3...origin/main
+git log --oneline origin/main..origin/release-v3
+git diff --stat origin/release-v3..origin/main</code></pre>
+        </li>
+
+        <li>
+          <h3>Create a temporary worktree at the pinned PR head</h3>
+          <p>This keeps the normal checkout and any unrelated work untouched.</p>
+          <pre><code>tmp=$(mktemp -d /tmp/canvid-release.XXXXXX)
+git worktree add --detach "$tmp" &lt;pinned-main-sha&gt;</code></pre>
+        </li>
+
+        <li>
+          <h3>Record release ancestry without taking release contents</h3>
+          <p>Use the <strong>merge strategy</strong> <code>-s ours</code>. This deliberately keeps the full current <code>main</code> tree, not just <code>main</code>'s side of conflicting hunks.</p>
+          <pre><code>git -C "$tmp" merge -s ours --no-ff &lt;pinned-release-sha&gt; \
+  -m "chore(release): reconcile release-v3 history" \
+  -m "Record the prior squash release as merged while retaining main's tree unchanged."</code></pre>
+          <div class="note bad"><strong>Do not replace <code>-s ours</code> with <code>-X ours</code>.</strong> <code>-X ours</code> only chooses our side for conflicting hunks and can still pull non-conflicting stale release changes into <code>main</code>.</div>
+        </li>
+
+        <li>
+          <h3>Prove the reconciliation changed no files</h3>
+          <pre><code>git -C "$tmp" diff --exit-code &lt;pinned-main-sha&gt;..HEAD
+git -C "$tmp" diff --check &lt;pinned-main-sha&gt;..HEAD
+git -C "$tmp" rev-parse &lt;pinned-main-sha&gt;^{tree} HEAD^{tree}</code></pre>
+          <p>The two tree hashes must be identical. For this run, both were <code>34d100ac1b01eb17f50bf1a515321835c412884f</code>.</p>
+        </li>
+
+        <li>
+          <h3>Push with a lease pinned to the inspected head</h3>
+          <pre><code>git -C "$tmp" push \
+  --force-with-lease=refs/heads/main:&lt;pinned-main-sha&gt; \
+  origin HEAD:refs/heads/main</code></pre>
+          <p>The lease makes the push fail safely if somebody updated <code>main</code> after inspection.</p>
+        </li>
+
+        <li>
+          <h3>Wait for GitHub and CI to settle</h3>
+          <pre><code>gh pr view 2413 --json headRefOid,baseRefOid,mergeable,mergeStateStatus,statusCheckRollup</code></pre>
+          <p>GitHub briefly reported <code>MERGEABLE / UNSTABLE</code> while Vercel ran. The first Vercel attempt failed because Turborepo restored a cached successful build without a usable <code>dist</code> artifact. A redeploy with the build cache disabled rebuilt the output and passed.</p>
+          <div class="note warn"><strong>Cache-specific recovery:</strong> only retry without cache when logs show the build itself succeeded but the expected output directory is missing. A real compiler or test failure needs a code fix.</div>
+        </li>
+
+        <li>
+          <h3>Squash merge, pinned to the verified head</h3>
+          <pre><code>gh pr merge 2413 --squash --match-head-commit &lt;verified-head-sha&gt;</code></pre>
+          <p>Do not pass <code>--delete-branch</code>. The PR head is <code>main</code>.</p>
+        </li>
+
+        <li>
+          <h3>Prove the final release tree matches the PR</h3>
+          <pre><code>git fetch origin main release-v3
+git diff --exit-code origin/main^{tree} origin/release-v3^{tree}
+git rev-parse origin/main^{tree} origin/release-v3^{tree}
+gh pr view 2413 --json state,mergedAt,mergeCommit</code></pre>
+          <p>The diff must be empty and both tree hashes must match.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Evidence from this run</h2>
+      <table class="checks">
+        <thead><tr><th>Check</th><th>Observed result</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td class="ok">PR metadata</td><td>Head <code>main</code>, base <code>release-v3</code></td><td>Confirmed the unusual branch direction before editing history.</td></tr>
+          <tr><td class="ok">Reconciliation tree</td><td><code>469224685</code> had the same tree as <code>565e0fa6</code></td><td>No release code leaked into <code>main</code>.</td></tr>
+          <tr><td class="ok">GitHub state</td><td><code>MERGEABLE / CLEAN</code></td><td>The conflict was actually resolved before merge.</td></tr>
+          <tr><td class="ok">Vercel</td><td>Clean redeploy completed successfully</td><td>The deployable artifact existed after bypassing the broken cache.</td></tr>
+          <tr><td class="ok">Merge method</td><td>Squash commit <code>8ad8eb094</code></td><td>The 3.1.1 release landed as one commit.</td></tr>
+          <tr><td class="ok">Final trees</td><td>Both <code>34d100ac1b01eb17f50bf1a515321835c412884f</code></td><td><code>release-v3</code> exactly matched the authoritative PR tree.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="hashes">
+        <div class="hash"><span>Final main head</span><code>46922468584d32d48214f0eda19282cf19c8d0e1</code></div>
+        <div class="hash"><span>Final release-v3 head</span><code>8ad8eb09471646eaab6e113703639d17574100ba</code></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Why this solution was the smallest safe one</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>We did</h3>
+          <ul>
+            <li>Add one no-content ancestry commit.</li>
+            <li>Keep the authoritative tree unchanged.</li>
+            <li>Use GitHub's normal squash merge.</li>
+            <li>Verify exact tree equality afterward.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>We skipped</h3>
+          <ul>
+            <li>Hand-resolving roughly 190 changed files.</li>
+            <li>Force-resetting the published release branch.</li>
+            <li>Creating a replacement PR.</li>
+            <li>Adding special release tooling for a one-off conflict.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>When to use this again</h2>
+      <p>Use this workflow only when all of these are true:</p>
+      <ul>
+        <li>The PR head is the complete, authoritative tree.</li>
+        <li>The base branch's unique commits are previous squash-release history, not release-only fixes that must survive.</li>
+        <li>The team explicitly wants the base tree replaced by the PR tree.</li>
+        <li>A merge commit on the PR head is acceptable.</li>
+        <li>The final PR merge will be a squash.</li>
+      </ul>
+      <div class="note bad"><strong>Do not use this for normal feature conflicts.</strong> The <code>ours</code> strategy discards the other branch's complete tree. It was correct here only because that was the stated release policy.</div>
+    </section>
+
+    <footer>
+      Prepared from the completed PR #2413 release process. All commit IDs and checks above were verified against the repository after the merge.
+    </footer>
+  </main>
+</body>
+</html>
