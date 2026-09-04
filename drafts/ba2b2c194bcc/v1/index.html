@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvid PWA: where the app ends and the extension begins</title>
+<meta name="description" content="A visual guide to Canvid's PWA MVP: startup handshake, privileged Chrome calls, recording flow, and the two-part local development workflow.">
+<meta property="og:title" content="Canvid PWA: where the app ends and the extension begins">
+<meta property="og:description" content="The PWA owns the app and media. A companion extension handles privileged Chrome calls. See the startup gate, recording flow, and development setup.">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style>
+@layer theme, base, components, utilities;
+</style>
+<style>
+/*
+ * shadcn/typeset
+ * https://ui.shadcn.com/docs/typeset.
+ */
+
+@layer components {
+  .typeset {
+    --typeset-font-body: inherit;
+    --typeset-font-heading: var(--font-heading);
+    --typeset-font-mono: var(--font-mono);
+    --typeset-size: 1em;
+    --typeset-leading: 1.75;
+    --typeset-flow: 1.25em;
+  }
+}
+
+@layer components {
+  .typeset {
+    font-family: var(--typeset-font-body);
+    font-size: calc(var(--typeset-size) * 1.125);
+    line-height: var(--typeset-leading);
+    color: var(--color-foreground, currentColor);
+    overflow-wrap: break-word;
+    margin-trim: block-start;
+
+    @media (min-width: 48rem), print {
+      font-size: var(--typeset-size);
+    }
+
+    --typeset-muted: var(
+      --color-muted-foreground,
+      color-mix(in oklab, currentColor 60%, transparent)
+    );
+    --typeset-rule: var(
+      --color-border,
+      color-mix(in oklab, currentColor 20%, transparent)
+    );
+  }
+
+  .typeset
+    *:not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ) {
+    /* Paragraphs. */
+    &:where(p) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+
+    /* Headings. */
+    &:where(h1, h2, h3, h4, h5, h6) {
+      color: var(--color-foreground, currentColor);
+      font-family: var(--typeset-font-heading);
+      font-weight: 600;
+      margin-block-end: 0;
+    }
+    &:where(h1) {
+      font-size: 1.75em;
+      line-height: 1.3;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h2) {
+      font-size: 1.25em;
+      line-height: 1.4;
+      margin-block-start: calc(var(--typeset-flow) * 1.4);
+    }
+    &:where(h3) {
+      font-size: 1.125em;
+      line-height: 1.45;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h4) {
+      font-size: 1em;
+      line-height: 1.5;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h5) {
+      font-size: 0.875em;
+      line-height: 1.5;
+      font-weight: 500;
+      color: var(--typeset-muted);
+      margin-block-start: calc(var(--typeset-flow) / 0.875);
+    }
+    &:where(h6) {
+      font-size: 0.8125em;
+      line-height: 1.5;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--typeset-muted);
+      margin-block-start: calc(var(--typeset-flow) / 0.8125);
+    }
+    /* Anchors. */
+    &:where([id]) {
+      scroll-margin-block-start: var(--typeset-flow);
+    }
+
+    /* Headings own the space below them. */
+    &:where(h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + *) {
+      margin-block-start: 1em;
+    }
+    &:where(:is(h1, h2, h3, h4) :is(code)) {
+      font-size: 0.9em;
+    }
+
+    /* Links. */
+    &:where(a) {
+      color: inherit;
+      font-weight: 500;
+      text-decoration-line: underline;
+      text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+    }
+    &:where(a:hover) {
+      text-decoration-color: currentColor;
+    }
+    &:where(a:focus-visible) {
+      outline: 2px solid var(--color-ring, currentColor);
+      outline-offset: 2px;
+      border-radius: 0.125em;
+    }
+    &:where(:is(h1, h2, h3, h4, h5, h6) :is(a)) {
+      font-weight: inherit;
+    }
+
+    /* Inline semantics. */
+    &:where(strong, b) {
+      font-weight: 600;
+    }
+    &:where(:is(h1, h2, h3, h4) :is(strong, b)) {
+      font-weight: 600;
+    }
+    &:where(mark) {
+      background-color: color-mix(
+        in oklab,
+        oklch(0.86 0.17 95) 40%,
+        transparent
+      );
+      color: inherit;
+      padding: 0.05em 0.15em;
+      border-radius: 0.2em;
+    }
+    &:where(abbr[title]) {
+      text-decoration-line: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 0.2em;
+      cursor: help;
+    }
+    &:where(del, s) {
+      color: var(--typeset-muted);
+      text-decoration-line: line-through;
+    }
+    &:where(sup, sub) {
+      font-size: 0.75em;
+      line-height: 0;
+      position: relative;
+      vertical-align: baseline;
+    }
+    &:where(sup) {
+      top: -0.5em;
+    }
+    &:where(sub) {
+      bottom: -0.25em;
+    }
+    &:where(sup a) {
+      text-decoration-line: none;
+      font-weight: 500;
+    }
+
+    /* Lists. */
+    &:where(ul) {
+      list-style-type: disc;
+    }
+    &:where(ol) {
+      list-style-type: decimal;
+    }
+    &:where(ul ul) {
+      list-style-type: circle;
+    }
+    &:where(ul ul ul) {
+      list-style-type: square;
+    }
+    &:where(ol[type="a" i]) {
+      list-style-type: lower-alpha;
+    }
+    &:where(ol[type="i" i]) {
+      list-style-type: lower-roman;
+    }
+    &:where(ol[type="A" s]) {
+      list-style-type: upper-alpha;
+    }
+    &:where(ol[type="I" s]) {
+      list-style-type: upper-roman;
+    }
+    &:where(ul, ol) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      padding-inline-start: 1.5em;
+    }
+    &:where(li) {
+      margin-block-start: 0.5em;
+      padding-inline-start: 0.4em;
+    }
+    &:where(li > p, li > ul, li > ol) {
+      margin-block-start: 0.5em;
+    }
+    &:where(ul > li)::marker {
+      color: var(--typeset-muted);
+    }
+    &:where(ol > li)::marker {
+      color: var(--typeset-muted);
+    }
+
+    /* GFM task lists. */
+    &:where(ul.contains-task-list) {
+      list-style-type: none;
+      padding-inline-start: 0.25em;
+    }
+    &:where(li.task-list-item > input[type="checkbox"]) {
+      margin-inline-end: 0.5em;
+      vertical-align: -0.1em;
+      accent-color: var(--color-primary, currentColor);
+    }
+
+    /* Disclosures. */
+    &:where(details) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(summary) {
+      cursor: pointer;
+      font-weight: 500;
+    }
+    &:where(summary)::marker {
+      color: var(--typeset-muted);
+    }
+
+    /* Keyboard keys. */
+    &:where(kbd) {
+      font-family: inherit;
+      font-size: 0.85em;
+      font-weight: 500;
+      border: 1px solid var(--typeset-rule);
+      border-block-end-width: 2px;
+      border-radius: min(calc(var(--radius, 0.5em) * 0.6), 0.35em);
+      padding: 0.0625em 0.35em;
+    }
+
+    /* Definition lists. */
+    &:where(dl) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(dt) {
+      font-weight: 500;
+      margin-block-start: 1em;
+    }
+    &:where(dt + dt) {
+      margin-block-start: 0.25em;
+    }
+    &:where(dd) {
+      margin-block-start: 0.25em;
+      margin-inline-start: 0;
+      padding-inline-start: 1em;
+      color: var(--typeset-muted);
+    }
+
+    /* Inline code. */
+    &:where(:not(pre) > code) {
+      background-color: var(
+        --color-muted,
+        color-mix(in oklab, currentColor 8%, transparent)
+      );
+      font-family: var(--typeset-font-mono);
+      font-size: 0.85em;
+      border-radius: min(calc(var(--radius, 0.5em) * 0.6), 0.35em);
+      padding: 0.125em 0.3em;
+    }
+
+    /* Code blocks. */
+    &:where(pre) {
+      background-color: var(
+        --color-muted,
+        color-mix(in oklab, currentColor 8%, transparent)
+      );
+      font-family: var(--typeset-font-mono);
+      font-size: 0.875em;
+      line-height: 1.5;
+      tab-size: 2;
+      direction: ltr;
+      border-radius: var(--radius, 0.5em);
+      padding: 0.75em 1em;
+      overflow-x: auto;
+      margin-block-start: calc(var(--typeset-flow) / 0.875);
+      margin-block-end: 0;
+    }
+    &:where(pre code) {
+      background-color: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    /* Blockquote. */
+    &:where(blockquote) {
+      border-inline-start: 2px solid var(--typeset-rule);
+      padding-inline-start: 1em;
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      margin-inline: 0;
+    }
+
+    /* Dividers. */
+    &:where(hr) {
+      border: 0;
+      border-block-start: 1px solid var(--typeset-rule);
+      margin-block-start: calc(var(--typeset-flow) * 2.4);
+      margin-block-end: 0;
+    }
+    &:where(hr + h1, hr + h2, hr + h3, hr + h4) {
+      margin-block-start: var(--typeset-flow);
+    }
+
+    /* GFM footnotes. */
+    &:where(.footnotes, [data-footnotes]) {
+      margin-block-start: calc(var(--typeset-flow) * 2);
+      border-block-start: 1px solid var(--typeset-rule);
+      padding-block-start: var(--typeset-flow);
+      font-size: 0.875em;
+      color: var(--typeset-muted);
+    }
+
+    /* Math. */
+    &:where(math[display="block"]) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-block: 0.25em;
+    }
+
+    /* Media. */
+    &:where(img, video) {
+      border-radius: var(--radius, 0.5em);
+      max-width: 100%;
+      height: auto;
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(p img) {
+      margin-block-start: 0;
+    }
+    &:where(figure) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      margin-inline: 0;
+    }
+    &:where(figcaption, caption) {
+      color: var(--typeset-muted);
+      font-size: 0.875em;
+      text-align: center;
+      margin-block-start: calc(0.75em / 0.875);
+    }
+    &:where(caption) {
+      caption-side: bottom;
+    }
+
+    /* Tables. Separators sit on cells, not tr:last-child: append-safe.
+       Bare tables stay real tables (keep their semantics) and wrap to fit. */
+    &:where(table) {
+      max-width: 100%;
+      font-size: 1em;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-block-end: 1px solid var(--typeset-rule);
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+
+    /* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
+       flow margin. Tables shrink to fit, so widen the table to make it scroll
+       instead of compress. */
+    &:where(.typeset-scroll) {
+      overflow-x: auto;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(.typeset-scroll > *) {
+      margin-block-start: 0;
+    }
+    &:where(.typeset-scroll table) {
+      width: max-content;
+      max-width: none;
+    }
+    &:where(thead th) {
+      font-weight: 500;
+      text-align: start;
+      white-space: nowrap;
+      padding: 0.65em 1em;
+    }
+    &:where(:is(tbody, tfoot) :is(td, th)) {
+      padding: 0.75em 1em;
+      text-align: start;
+      vertical-align: top;
+      border-block-start: 1px solid var(--typeset-rule);
+    }
+    &:where(tbody th, tfoot th) {
+      font-weight: 500;
+    }
+    &:where(th:first-child, td:first-child) {
+      padding-inline-start: 0;
+    }
+    &:where(th[align="center"], td[align="center"]) {
+      text-align: center;
+    }
+    &:where(th[align="right"], td[align="right"]) {
+      text-align: end;
+    }
+
+    /* Blocks inside list items keep the list's tighter rhythm. */
+    &:where(li > blockquote, li > table, li > figure) {
+      margin-block-start: 0.5em;
+    }
+    &:where(li > pre) {
+      margin-block-start: calc(0.5em / 0.875);
+    }
+
+    @media print {
+      &:where(pre, table, blockquote, figure) {
+        break-inside: avoid;
+      }
+      &:where(h1, h2, h3, h4) {
+        break-after: avoid;
+      }
+    }
+
+    /* Forced colors strips the code background, so give it a border. */
+    @media (forced-colors: active) {
+      &:where(:not(pre) > code) {
+        border: 1px solid;
+      }
+    }
+  }
+
+  /* First child adds no space above. Last so it wins ties. */
+  .typeset
+    > :where(:first-child):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ),
+  .typeset
+    > :where(:first-child)
+    > :where(:first-child):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ),
+  .typeset
+    :where(
+      li > :first-child,
+      blockquote > :first-child,
+      td > :first-child,
+      th > :first-child,
+      dd > :first-child,
+      figure > :first-child,
+      figure > picture > img
+    ):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ) {
+    margin-block-start: 0;
+  }
+}
+
+</style>
+<style>
+:root {
+  color-scheme: light dark;
+  --font-heading: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-foreground: #171717;
+  --color-muted-foreground: #5c5c5c;
+  --color-muted: #f4f4f4;
+  --color-border: #e2e2e2;
+  --color-ring: #525252;
+  --color-primary: #171717;
+  --radius: 0.5rem;
+  --background: #fff;
+  --add: #1f6b45;
+  --remove: #9b3636;
+  --add-soft: color-mix(in oklab, var(--add) 10%, var(--background));
+  --remove-soft: color-mix(in oklab, var(--remove) 10%, var(--background));
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #000;
+    --color-foreground: #fff;
+    --color-muted-foreground: #a3a3a3;
+    --color-muted: #161616;
+    --color-border: #2e2e2e;
+    --color-ring: #aaa;
+    --color-primary: #fff;
+    --add: #98d5ad;
+    --remove: #eaa3a3;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--color-foreground);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.typeset-report {
+  --typeset-size: 16px;
+  --typeset-leading: 1.7;
+  --typeset-flow: 1.2em;
+}
+.wrap {
+  width: min(46rem, calc(100% - 2.5rem));
+  margin-inline: auto;
+  padding-block: 3rem 5rem;
+}
+.lede {
+  color: var(--color-muted-foreground);
+  font-size: 0.875em;
+  line-height: 1.6;
+}
+.caption {
+  color: var(--color-muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  margin-block-start: 0.75rem;
+}
+.typeset .caption { font-size: 0.8125em; }
+.typeset footer {
+  border-block-start: 1px solid var(--color-border);
+  margin-block-start: 2.75rem;
+  padding-block-start: 1.25rem;
+  font-size: 0.8125em;
+  color: var(--color-muted-foreground);
+}
+
+.visual { margin-block-start: 1.25em; }
+.surface {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-muted);
+  padding: 1rem 1.1rem;
+}
+.kicker {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+.nodes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-block-start: 0.75rem;
+}
+.node {
+  background: var(--background);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) * 0.75);
+  padding: 0.7rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.node strong {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-block-end: 0.15rem;
+}
+.node.bridge-end {
+  grid-column: 1 / -1;
+  border-style: dashed;
+}
+
+.connector {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding-block: 0.7rem;
+  color: var(--color-muted-foreground);
+  font: 0.75rem/1.4 var(--font-mono);
+}
+.connector svg { display: block; }
+.wire {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--background);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-block-start: 1.25em;
+}
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.05rem;
+  background: var(--background);
+  min-width: 0;
+}
+.card.bad { background: var(--remove-soft); border-color: color-mix(in oklab, var(--remove) 35%, var(--color-border)); }
+.card.good { background: var(--add-soft); border-color: color-mix(in oklab, var(--add) 35%, var(--color-border)); }
+.card h3 { margin: 0; font-size: 0.95rem; font-weight: 600; }
+.stack {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.stack li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.35rem;
+  padding: 0.28rem 0;
+}
+.stack .n { color: var(--color-muted-foreground); }
+.gone { color: var(--remove); }
+.fresh { color: var(--add); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--background);
+  white-space: nowrap;
+}
+.badge.ext { background: var(--color-muted); }
+
+.gate {
+  display: grid;
+  gap: 0;
+}
+.gate-step {
+  border: 1px solid var(--color-border);
+  background: var(--background);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.875rem;
+}
+.gate-step:first-of-type { border-radius: var(--radius) var(--radius) 0 0; }
+.gate-step + .gate-step { border-block-start: 0; }
+.gate-fork {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--color-border);
+  border-block-start: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+.gate-arm {
+  padding: 0.85rem 0.9rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.gate-arm + .gate-arm { border-inline-start: 1px solid var(--color-border); }
+.gate-arm .lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-block-end: 0.4rem;
+}
+.ok .lbl { color: var(--add); }
+.no .lbl { color: var(--remove); }
+.ok { background: var(--add-soft); }
+.no { background: var(--remove-soft); }
+
+.pairs { display: grid; gap: 0.65rem; }
+.pair {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+.pair .side {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+  background: var(--background);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  min-width: 0;
+}
+.pair .side code {
+  display: block;
+  font-size: 0.75rem;
+  margin-block-start: 0.25rem;
+  overflow-wrap: anywhere;
+}
+.pair .eq {
+  align-self: center;
+  color: var(--color-muted-foreground);
+  font: 0.75rem/1 var(--font-mono);
+}
+
+.protocol {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--background);
+}
+.step {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  border-block-start: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.step:first-child { border-block-start: 0; }
+.idx {
+  font: 0.75rem/1.2 var(--font-mono);
+  color: var(--color-muted-foreground);
+  padding-block-start: 0.15rem;
+}
+.actors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-end: 0.3rem;
+}
+.arrow { color: var(--color-muted-foreground); font-size: 0.75rem; }
+.note {
+  margin-block-start: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--color-muted);
+  border-radius: calc(var(--radius) * 0.65);
+  color: var(--color-muted-foreground);
+  font-size: 0.75rem;
+}
+.loop {
+  border-inline-start: 2px dashed var(--color-border);
+  margin-inline-start: 0.35rem;
+  padding-inline-start: 0.7rem;
+}
+
+.tracks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.track-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  padding: 0.65rem 0;
+  border-block-start: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.track-item:first-of-type { border-block-start: 0; padding-block-start: 0.35rem; }
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-foreground);
+  margin-block-start: 0.4rem;
+}
+.dot.ghost {
+  background: transparent;
+  border: 1px solid var(--color-foreground);
+}
+
+.fixes { display: grid; gap: 0.55rem; }
+.fix {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr 1fr;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.fix .topic { font-weight: 600; }
+.fix .before { color: var(--remove); }
+.fix .after { color: var(--add); }
+
+.check { margin: 0.65rem 0 0; padding: 0; list-style: none; }
+.check li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.45rem;
+  padding: 0.35rem 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.mark { color: var(--add); font-weight: 700; }
+.path {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.path li {
+  padding: 0.28rem 0 0.28rem 0.9rem;
+  border-inline-start: 1px solid var(--color-border);
+}
+
+@media (max-width: 640px) {
+  .wrap { width: min(46rem, calc(100% - 2rem)); padding-block: 1.75rem 3.5rem; }
+  .nodes, .split, .gate-fork, .tracks, .pair, .fix { grid-template-columns: 1fr; }
+  .pair .eq { display: none; }
+  .gate-arm + .gate-arm { border-inline-start: 0; border-block-start: 1px solid var(--color-border); }
+  .fix .topic { grid-column: 1 / -1; }
+}
+@media print {
+  .wrap { width: auto; padding: 0; }
+  .surface, .card, .protocol, .fix { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<main class="wrap typeset typeset-report">
+  <h1>Canvid PWA + companion extension</h1>
+  <p class="lede">Implementation note · September 2, 2026<br>Local design revision · September 5, 2026</p>
+  <p><strong>One app, two installs.</strong> The PWA owns the UI and media. The companion runs Chrome APIs the PWA cannot call directly.</p>
+
+  <div class="split not-typeset visual" aria-hidden="false">
+    <article class="card">
+      <div class="kicker">Hosted PWA</div>
+      <h3 style="margin-block-start:0.45rem">UI, recording, media</h3>
+      <p class="caption" style="margin-block-start:0.35rem">React app, Web APIs, Origin Private File System. Installed from HTTPS, or opened on loopback in development.</p>
+    </article>
+    <article class="card">
+      <div class="kicker">Installed companion</div>
+      <h3 style="margin-block-start:0.45rem">Privileged Chrome calls</h3>
+      <p class="caption" style="margin-block-start:0.35rem"><code>desktopCapture</code>, <code>system</code>, and <code>windows</code>. Loaded unpacked in development, distributed as an extension in production.</p>
+    </article>
+  </div>
+
+  <h2>1. The boundary that matters</h2>
+
+  <figure class="visual not-typeset">
+    <div class="surface">
+      <div class="kicker">Hosted PWA</div>
+      <div class="nodes">
+        <div class="node"><strong>React UI</strong>Recording logic and screens</div>
+        <div class="node"><strong>Web platform</strong>Media streams and OPFS</div>
+        <div class="node"><strong>Message client</strong>Talks to a known extension ID</div>
+        <div class="node bridge-end"><strong>Only this node crosses the boundary</strong>The UI never calls <code>chrome.windows</code> or <code>desktopCapture</code> itself.</div>
+      </div>
+    </div>
+    <div class="connector">
+      <span class="wire">sendMessage → known extension ID</span>
+      <svg width="12" height="28" viewBox="0 0 12 28" aria-hidden="true">
+        <path d="M6 0v22M1 18l5 6 5-6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <span class="wire">← serializable response</span>
+    </div>
+    <div class="surface">
+      <div class="kicker">Installed companion extension</div>
+      <div class="nodes">
+        <div class="node"><strong>MV3 worker</strong>Handles external messages</div>
+        <div class="node"><strong>desktopCapture</strong>chooseDesktopMedia on sender.tab</div>
+        <div class="node"><strong>system / windows</strong>Display, CPU, memory, minimize</div>
+        <div class="node bridge-end"><strong>Sender tab, not an arbitrary window</strong>The manifest allowlists the PWA origin. Capture and window actions use the calling tab.</div>
+      </div>
+    </div>
+    <figcaption class="caption">Media processing stays in the PWA. The bridge is a narrow, allowlisted message channel, not a general Chrome API proxy.</figcaption>
+  </figure>
+
+  <div class="split not-typeset">
+    <article class="card bad">
+      <div class="kicker gone">Before</div>
+      <h3>Assumes an extension page</h3>
+      <ol class="stack">
+        <li><span class="n">1</span><span>recording.start()</span></li>
+        <li><span class="n">2</span><span class="gone">chrome.windows.getCurrent()</span></li>
+        <li><span class="n">3</span><span class="gone">chrome.windows.update(...)</span></li>
+      </ol>
+      <p class="caption">Fails in a PWA: <code>chrome.windows</code> is absent.</p>
+    </article>
+    <article class="card good">
+      <div class="kicker fresh">After</div>
+      <h3>Route privileged work</h3>
+      <ol class="stack">
+        <li><span class="n">1</span><span>recording.start()</span></li>
+        <li><span class="n">2</span><span>minimizeCurrentChromeWindow()</span></li>
+        <li><span class="n">3</span><span class="fresh">PWA → companion message</span></li>
+        <li><span class="n">4</span><span class="fresh">companion → sender window</span></li>
+        <li><span class="n">5</span><span>extension page → direct API</span></li>
+      </ol>
+      <p class="caption">Existing full-extension behavior is retained.</p>
+    </article>
+  </div>
+
+  <h2>2. Startup is a gate, not discovery</h2>
+  <p>The PWA must already know the extension ID. Loading an extension alone does not tell the page which extension to call.</p>
+
+  <figure class="visual not-typeset">
+    <div class="gate">
+      <div class="gate-step">bootstrap</div>
+      <div class="gate-step">load browser shim</div>
+      <div class="gate-step">ping(<code>VITE_COMPANION_EXTENSION_ID</code>)</div>
+      <div class="gate-fork">
+        <div class="gate-arm ok">
+          <div class="lbl">Available</div>
+          Register the PWA service worker, then import the normal app entry.
+        </div>
+        <div class="gate-arm no">
+          <div class="lbl">Unavailable or rejected</div>
+          Load the current locale, wrap in <code>I18nProvider</code>, render the extension-required screen.
+        </div>
+      </div>
+    </div>
+    <figcaption class="caption">There is no runtime hunt for a companion. A missed or wrong ID is a hard stop, not a fallback into a half-working app.</figcaption>
+  </figure>
+
+  <h3>Both sides must agree</h3>
+  <figure class="visual not-typeset">
+    <div class="pairs">
+      <div class="pair">
+        <div class="side">
+          <div class="kicker">PWA configuration</div>
+          <code>VITE_COMPANION_EXTENSION_ID</code>
+        </div>
+        <div class="eq">=</div>
+        <div class="side">
+          <div class="kicker">Installed companion identity</div>
+          <code>stable manifest public key</code>
+        </div>
+      </div>
+      <div class="pair">
+        <div class="side">
+          <div class="kicker">PWA origin</div>
+          <code>loopback in dev, HTTPS host in prod</code>
+        </div>
+        <div class="eq">=</div>
+        <div class="side">
+          <div class="kicker">externally_connectable.matches</div>
+          <code>allowed hostname and scheme</code>
+        </div>
+      </div>
+    </div>
+    <figcaption class="caption">Local development wires the stable ID and loopback origin automatically. Production must use the actual published extension ID and hosted origin.</figcaption>
+  </figure>
+
+  <h2>3. Recording crosses the boundary only when needed</h2>
+
+  <figure class="visual not-typeset">
+    <div class="protocol">
+      <div class="step">
+        <div class="idx">01</div>
+        <div>
+          <div class="actors"><span class="badge">PWA</span><span class="arrow">→</span><span class="badge ext">Companion</span></div>
+          <code>choose-desktop-media</code>
+        </div>
+      </div>
+      <div class="step">
+        <div class="idx">02</div>
+        <div>
+          <div class="actors"><span class="badge ext">Companion</span><span class="arrow">→</span><span class="badge">Chrome</span></div>
+          <code>chooseDesktopMedia(sources, sender.tab)</code>
+        </div>
+      </div>
+      <div class="step">
+        <div class="idx">03</div>
+        <div>
+          <div class="actors"><span class="badge">Chrome</span><span class="arrow">→</span><span class="badge ext">Companion</span><span class="arrow">→</span><span class="badge">PWA</span></div>
+          Stream ID plus audio availability, returned as a capture result.
+          <div class="note">Consume the stream ID promptly and prepare recording in the PWA.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="idx">04</div>
+        <div>
+          <div class="actors"><span class="badge">PWA</span><span class="arrow">→</span><span class="badge ext">Companion</span><span class="arrow">→</span><span class="badge">Chrome</span></div>
+          <code>minimize-current-window</code> using <code>sender.tab.windowId</code>.
+          <div class="note">Schedule recording activation after 500 ms.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="idx">05</div>
+        <div>
+          <div class="actors"><span class="badge">PWA</span><span class="arrow">↔</span><span class="badge ext">Companion</span></div>
+          <div class="loop">Existing 500 ms restore watcher: <code>get-current-window</code> reads sender window state through the companion. When recording and restored, stop recording.</div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="caption">Other bridged reads: <code>system-display</code>, <code>system-cpu</code>, and <code>system-memory</code>. The bridge is not a blanket exposure of every Chrome API.</figcaption>
+  </figure>
+
+  <h2>4. Development produces two artifacts</h2>
+
+  <figure class="visual not-typeset">
+    <div class="tracks">
+      <article class="card">
+        <div class="kicker">Local</div>
+        <h3 style="margin:0.4rem 0 0.2rem">pnpm dev:pwa</h3>
+        <div class="track-item">
+          <span class="dot"></span>
+          <div>
+            <strong>dist-companion</strong><br>
+            Load unpacked in Chrome or Helium. Origin allowlist: <code>http://127.0.0.1/*</code>
+          </div>
+        </div>
+        <div class="track-item">
+          <span class="dot"></span>
+          <div>
+            <strong>Vite on 127.0.0.1:5173</strong><br>
+            Open the loopback origin. The stable companion ID is supplied automatically.
+          </div>
+        </div>
+      </article>
+      <article class="card">
+        <div class="kicker">Production</div>
+        <h3 style="margin:0.4rem 0 0.2rem">Separate build outputs</h3>
+        <div class="track-item">
+          <span class="dot ghost"></span>
+          <div>
+            <strong>pnpm build:pwa</strong><br>
+            <code>dist-pwa</code> → HTTPS hosting
+          </div>
+        </div>
+        <div class="track-item">
+          <span class="dot ghost"></span>
+          <div>
+            <strong>pnpm build:companion-ext</strong><br>
+            <code>dist-companion</code> → extension distribution
+          </div>
+        </div>
+      </article>
+    </div>
+    <figcaption class="caption">Commands run from the desktop package. After companion code changes: rebuild and reload the unpacked extension. After environment changes: restart Vite and reload the PWA. Installing the PWA remains a separate browser action.</figcaption>
+  </figure>
+
+  <h3>Why the first runs failed</h3>
+  <div class="fixes not-typeset visual">
+    <div class="fix">
+      <div class="topic">Standalone startup</div>
+      <div class="before"><code>Trans</code> without a provider</div>
+      <div class="after">load locale → <code>I18nProvider</code> → <code>Trans</code></div>
+    </div>
+    <div class="fix">
+      <div class="topic">Companion connection</div>
+      <div class="before">missing ID; hosted-origin allowlist only</div>
+      <div class="after">stable dev ID; loopback allowlist</div>
+    </div>
+    <div class="fix">
+      <div class="topic">Runtime version</div>
+      <div class="before"><code>runtime?.getManifest()</code></div>
+      <div class="after"><code>runtime?.getManifest?.()</code> with web fallback</div>
+    </div>
+    <div class="fix">
+      <div class="topic">Recording restore</div>
+      <div class="before">direct <code>chrome.windows</code> from the PWA</div>
+      <div class="after">shared helpers route through the companion</div>
+    </div>
+  </div>
+
+  <h2>What is proven, and what is still MVP</h2>
+  <div class="split not-typeset visual">
+    <article class="card">
+      <div class="kicker">Checked during implementation</div>
+      <h3 style="margin-block-start:0.4rem">Build and messaging</h3>
+      <ul class="check">
+        <li><span class="mark">✓</span><span>PWA and companion builds completed.</span></li>
+        <li><span class="mark">✓</span><span>Focused messaging and browser-shim tests: 17/17 passed.</span></li>
+        <li><span class="mark">✓</span><span>Missing-method runtime shapes are covered.</span></li>
+      </ul>
+      <p class="caption">These checks do not prove a complete live recording-to-export session. Renderer typechecking also had two unrelated <code>supportsRandomAccess</code> errors.</p>
+    </article>
+    <article class="card">
+      <div class="kicker">Next proof</div>
+      <h3 style="margin-block-start:0.4rem">One full session</h3>
+      <ol class="path">
+        <li>install</li>
+        <li>connect</li>
+        <li>choose source</li>
+        <li>record</li>
+        <li>restore</li>
+        <li>stop</li>
+        <li>edit</li>
+        <li>export</li>
+      </ol>
+      <p class="caption">Offline asset caching, polished extension-install recovery, Web Store release, and update rollout remain follow-up work. The current service worker does not make the app offline-ready.</p>
+    </article>
+  </div>
+
+  <footer>Based on the implemented MVP and its debugging history, not a fresh September 5 code audit. Reference: <a href="https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage" target="_blank" rel="noopener noreferrer">Chrome web-page-to-extension messaging</a>.</footer>
+</main>
+</body>
+</html>
