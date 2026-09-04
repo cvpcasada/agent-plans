@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvid PWA + Companion Extension MVP</title>
+<meta name="description" content="Canvid MVP architecture: a hosted PWA handles the app while a companion extension provides privileged Chrome APIs. Includes bridge actions, development commands, reported verification, and release follow-ups.">
+<meta property="og:title" content="Canvid PWA + Companion Extension MVP">
+<meta property="og:description" content="Canvid MVP architecture: a hosted PWA handles the app while a companion extension provides privileged Chrome APIs. Includes bridge actions, development commands, reported verification, and release follow-ups.">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+@layer theme, base, components, utilities;
+/*
+ * shadcn/typeset
+ * https://ui.shadcn.com/docs/typeset.
+ */
+
+@layer components {
+  .typeset {
+    --typeset-font-body: inherit;
+    --typeset-font-heading: var(--font-heading);
+    --typeset-font-mono: var(--font-mono);
+    --typeset-size: 1em;
+    --typeset-leading: 1.75;
+    --typeset-flow: 1.25em;
+  }
+}
+
+@layer components {
+  .typeset {
+    font-family: var(--typeset-font-body);
+    font-size: calc(var(--typeset-size) * 1.125);
+    line-height: var(--typeset-leading);
+    color: var(--color-foreground, currentColor);
+    overflow-wrap: break-word;
+    margin-trim: block-start;
+
+    @media (min-width: 48rem), print {
+      font-size: var(--typeset-size);
+    }
+
+    --typeset-muted: var(
+      --color-muted-foreground,
+      color-mix(in oklab, currentColor 60%, transparent)
+    );
+    --typeset-rule: var(
+      --color-border,
+      color-mix(in oklab, currentColor 20%, transparent)
+    );
+  }
+
+  .typeset
+    *:not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ) {
+    /* Paragraphs. */
+    &:where(p) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+
+    /* Headings. */
+    &:where(h1, h2, h3, h4, h5, h6) {
+      color: var(--color-foreground, currentColor);
+      font-family: var(--typeset-font-heading);
+      font-weight: 600;
+      margin-block-end: 0;
+    }
+    &:where(h1) {
+      font-size: 1.75em;
+      line-height: 1.3;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h2) {
+      font-size: 1.25em;
+      line-height: 1.4;
+      margin-block-start: calc(var(--typeset-flow) * 1.4);
+    }
+    &:where(h3) {
+      font-size: 1.125em;
+      line-height: 1.45;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h4) {
+      font-size: 1em;
+      line-height: 1.5;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(h5) {
+      font-size: 0.875em;
+      line-height: 1.5;
+      font-weight: 500;
+      color: var(--typeset-muted);
+      margin-block-start: calc(var(--typeset-flow) / 0.875);
+    }
+    &:where(h6) {
+      font-size: 0.8125em;
+      line-height: 1.5;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--typeset-muted);
+      margin-block-start: calc(var(--typeset-flow) / 0.8125);
+    }
+    /* Anchors. */
+    &:where([id]) {
+      scroll-margin-block-start: var(--typeset-flow);
+    }
+
+    /* Headings own the space below them. */
+    &:where(h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + *) {
+      margin-block-start: 1em;
+    }
+    &:where(:is(h1, h2, h3, h4) :is(code)) {
+      font-size: 0.9em;
+    }
+
+    /* Links. */
+    &:where(a) {
+      color: inherit;
+      font-weight: 500;
+      text-decoration-line: underline;
+      text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+    }
+    &:where(a:hover) {
+      text-decoration-color: currentColor;
+    }
+    &:where(a:focus-visible) {
+      outline: 2px solid var(--color-ring, currentColor);
+      outline-offset: 2px;
+      border-radius: 0.125em;
+    }
+    &:where(:is(h1, h2, h3, h4, h5, h6) :is(a)) {
+      font-weight: inherit;
+    }
+
+    /* Inline semantics. */
+    &:where(strong, b) {
+      font-weight: 600;
+    }
+    &:where(:is(h1, h2, h3, h4) :is(strong, b)) {
+      font-weight: 600;
+    }
+    &:where(mark) {
+      background-color: color-mix(
+        in oklab,
+        oklch(0.86 0.17 95) 40%,
+        transparent
+      );
+      color: inherit;
+      padding: 0.05em 0.15em;
+      border-radius: 0.2em;
+    }
+    &:where(abbr[title]) {
+      text-decoration-line: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 0.2em;
+      cursor: help;
+    }
+    &:where(del, s) {
+      color: var(--typeset-muted);
+      text-decoration-line: line-through;
+    }
+    &:where(sup, sub) {
+      font-size: 0.75em;
+      line-height: 0;
+      position: relative;
+      vertical-align: baseline;
+    }
+    &:where(sup) {
+      top: -0.5em;
+    }
+    &:where(sub) {
+      bottom: -0.25em;
+    }
+    &:where(sup a) {
+      text-decoration-line: none;
+      font-weight: 500;
+    }
+
+    /* Lists. */
+    &:where(ul) {
+      list-style-type: disc;
+    }
+    &:where(ol) {
+      list-style-type: decimal;
+    }
+    &:where(ul ul) {
+      list-style-type: circle;
+    }
+    &:where(ul ul ul) {
+      list-style-type: square;
+    }
+    &:where(ol[type="a" i]) {
+      list-style-type: lower-alpha;
+    }
+    &:where(ol[type="i" i]) {
+      list-style-type: lower-roman;
+    }
+    &:where(ol[type="A" s]) {
+      list-style-type: upper-alpha;
+    }
+    &:where(ol[type="I" s]) {
+      list-style-type: upper-roman;
+    }
+    &:where(ul, ol) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      padding-inline-start: 1.5em;
+    }
+    &:where(li) {
+      margin-block-start: 0.5em;
+      padding-inline-start: 0.4em;
+    }
+    &:where(li > p, li > ul, li > ol) {
+      margin-block-start: 0.5em;
+    }
+    &:where(ul > li)::marker {
+      color: var(--typeset-muted);
+    }
+    &:where(ol > li)::marker {
+      color: var(--typeset-muted);
+    }
+
+    /* GFM task lists. */
+    &:where(ul.contains-task-list) {
+      list-style-type: none;
+      padding-inline-start: 0.25em;
+    }
+    &:where(li.task-list-item > input[type="checkbox"]) {
+      margin-inline-end: 0.5em;
+      vertical-align: -0.1em;
+      accent-color: var(--color-primary, currentColor);
+    }
+
+    /* Disclosures. */
+    &:where(details) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(summary) {
+      cursor: pointer;
+      font-weight: 500;
+    }
+    &:where(summary)::marker {
+      color: var(--typeset-muted);
+    }
+
+    /* Keyboard keys. */
+    &:where(kbd) {
+      font-family: inherit;
+      font-size: 0.85em;
+      font-weight: 500;
+      border: 1px solid var(--typeset-rule);
+      border-block-end-width: 2px;
+      border-radius: min(calc(var(--radius, 0.5em) * 0.6), 0.35em);
+      padding: 0.0625em 0.35em;
+    }
+
+    /* Definition lists. */
+    &:where(dl) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(dt) {
+      font-weight: 500;
+      margin-block-start: 1em;
+    }
+    &:where(dt + dt) {
+      margin-block-start: 0.25em;
+    }
+    &:where(dd) {
+      margin-block-start: 0.25em;
+      margin-inline-start: 0;
+      padding-inline-start: 1em;
+      color: var(--typeset-muted);
+    }
+
+    /* Inline code. */
+    &:where(:not(pre) > code) {
+      background-color: var(
+        --color-muted,
+        color-mix(in oklab, currentColor 8%, transparent)
+      );
+      font-family: var(--typeset-font-mono);
+      font-size: 0.85em;
+      border-radius: min(calc(var(--radius, 0.5em) * 0.6), 0.35em);
+      padding: 0.125em 0.3em;
+    }
+
+    /* Code blocks. */
+    &:where(pre) {
+      background-color: var(
+        --color-muted,
+        color-mix(in oklab, currentColor 8%, transparent)
+      );
+      font-family: var(--typeset-font-mono);
+      font-size: 0.875em;
+      line-height: 1.5;
+      tab-size: 2;
+      direction: ltr;
+      border-radius: var(--radius, 0.5em);
+      padding: 0.75em 1em;
+      overflow-x: auto;
+      margin-block-start: calc(var(--typeset-flow) / 0.875);
+      margin-block-end: 0;
+    }
+    &:where(pre code) {
+      background-color: transparent;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    /* Blockquote. */
+    &:where(blockquote) {
+      border-inline-start: 2px solid var(--typeset-rule);
+      padding-inline-start: 1em;
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      margin-inline: 0;
+    }
+
+    /* Dividers. */
+    &:where(hr) {
+      border: 0;
+      border-block-start: 1px solid var(--typeset-rule);
+      margin-block-start: calc(var(--typeset-flow) * 2.4);
+      margin-block-end: 0;
+    }
+    &:where(hr + h1, hr + h2, hr + h3, hr + h4) {
+      margin-block-start: var(--typeset-flow);
+    }
+
+    /* GFM footnotes. */
+    &:where(.footnotes, [data-footnotes]) {
+      margin-block-start: calc(var(--typeset-flow) * 2);
+      border-block-start: 1px solid var(--typeset-rule);
+      padding-block-start: var(--typeset-flow);
+      font-size: 0.875em;
+      color: var(--typeset-muted);
+    }
+
+    /* Math. */
+    &:where(math[display="block"]) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-block: 0.25em;
+    }
+
+    /* Media. */
+    &:where(img, video) {
+      border-radius: var(--radius, 0.5em);
+      max-width: 100%;
+      height: auto;
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+    &:where(p img) {
+      margin-block-start: 0;
+    }
+    &:where(figure) {
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+      margin-inline: 0;
+    }
+    &:where(figcaption, caption) {
+      color: var(--typeset-muted);
+      font-size: 0.875em;
+      text-align: center;
+      margin-block-start: calc(0.75em / 0.875);
+    }
+    &:where(caption) {
+      caption-side: bottom;
+    }
+
+    /* Tables. Separators sit on cells, not tr:last-child: append-safe.
+       Bare tables stay real tables (keep their semantics) and wrap to fit. */
+    &:where(table) {
+      max-width: 100%;
+      font-size: 1em;
+      line-height: 1.5;
+      font-variant-numeric: tabular-nums;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-block-end: 1px solid var(--typeset-rule);
+      margin-block-start: var(--typeset-flow);
+      margin-block-end: 0;
+    }
+
+    /* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
+       flow margin. Tables shrink to fit, so widen the table to make it scroll
+       instead of compress. */
+    &:where(.typeset-scroll) {
+      overflow-x: auto;
+      margin-block-start: var(--typeset-flow);
+    }
+    &:where(.typeset-scroll > *) {
+      margin-block-start: 0;
+    }
+    &:where(.typeset-scroll table) {
+      width: max-content;
+      max-width: none;
+    }
+    &:where(thead th) {
+      font-weight: 500;
+      text-align: start;
+      white-space: nowrap;
+      padding: 0.65em 1em;
+    }
+    &:where(:is(tbody, tfoot) :is(td, th)) {
+      padding: 0.75em 1em;
+      text-align: start;
+      vertical-align: top;
+      border-block-start: 1px solid var(--typeset-rule);
+    }
+    &:where(tbody th, tfoot th) {
+      font-weight: 500;
+    }
+    &:where(th:first-child, td:first-child) {
+      padding-inline-start: 0;
+    }
+    &:where(th[align="center"], td[align="center"]) {
+      text-align: center;
+    }
+    &:where(th[align="right"], td[align="right"]) {
+      text-align: end;
+    }
+
+    /* Blocks inside list items keep the list's tighter rhythm. */
+    &:where(li > blockquote, li > table, li > figure) {
+      margin-block-start: 0.5em;
+    }
+    &:where(li > pre) {
+      margin-block-start: calc(0.5em / 0.875);
+    }
+
+    @media print {
+      &:where(pre, table, blockquote, figure) {
+        break-inside: avoid;
+      }
+      &:where(h1, h2, h3, h4) {
+        break-after: avoid;
+      }
+    }
+
+    /* Forced colors strips the code background, so give it a border. */
+    @media (forced-colors: active) {
+      &:where(:not(pre) > code) {
+        border: 1px solid;
+      }
+    }
+  }
+
+  /* First child adds no space above. Last so it wins ties. */
+  .typeset
+    > :where(:first-child):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ),
+  .typeset
+    > :where(:first-child)
+    > :where(:first-child):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ),
+  .typeset
+    :where(
+      li > :first-child,
+      blockquote > :first-child,
+      td > :first-child,
+      th > :first-child,
+      dd > :first-child,
+      figure > :first-child,
+      figure > picture > img
+    ):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *
+      )
+    ) {
+    margin-block-start: 0;
+  }
+}
+
+
+:root{color-scheme:light dark;--font-heading:ui-sans-serif,system-ui,sans-serif;--font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;--color-foreground:#171717;--color-muted-foreground:#5c5c5c;--color-muted:#f4f4f4;--color-border:#e2e2e2;--color-ring:#525252;--color-primary:#171717;--radius:.5rem;--background:#fff;--add:#1f6b45;--remove:#9b3636}
+@media(prefers-color-scheme:dark){:root{--background:#000;--color-foreground:#fff;--color-muted-foreground:#a3a3a3;--color-muted:#161616;--color-border:#2e2e2e;--color-ring:#aaa;--color-primary:#fff;--add:#98d5ad;--remove:#eaa3a3}}
+*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--color-foreground);font-family:var(--font-heading)}main{width:min(64rem,calc(100% - 2.5rem));margin:0 auto;padding:2.5rem 0 4rem}.typeset-report{--typeset-size:16px;--typeset-leading:1.7;--typeset-flow:1.2em}.lede,.small,.caption{color:var(--color-muted-foreground)}.lede{font-size:.875em}.small,.caption{font-size:.8125rem}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.2rem}.pill{font-size:.75rem;border:1px solid var(--color-border);padding:.2rem .6rem;border-radius:var(--radius)}.good{color:var(--add)}.card{border:1px solid var(--color-border);border-radius:var(--radius);padding:1.2rem;min-width:0}.card h3{margin-top:0}.card p{color:var(--color-muted-foreground)}.note{border-left:3px solid var(--color-ring);background:var(--color-muted);padding:1rem}.diagram{border:1px solid var(--color-border);border-radius:var(--radius);padding:1rem;overflow-x:auto;background:var(--background)}.typeset-scroll table{width:100%;min-width:620px;font-size:.875rem}th{background:var(--color-muted)}.typeset-scroll th,.typeset-scroll td{padding:.8rem}footer{border-top:1px solid var(--color-border);margin-top:2.5rem;padding-top:1rem;color:var(--color-muted-foreground);font-size:.8125rem}a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--color-ring);outline-offset:4px}@media(max-width:640px){main{padding-top:1.5rem}}@media print{.card,.diagram,.note{break-inside:avoid}.typeset-scroll{overflow:visible}.typeset-scroll table{min-width:0}main{width:100%;padding:0}}@media(forced-colors:active){.card,.diagram,.note{border:1px solid CanvasText}}
+
+.mermaid{margin:0;white-space:pre-wrap;font-family:var(--font-mono);font-size:.8125rem}.mermaid svg{display:block;margin-inline:auto;width:100%;min-width:1000px;max-width:none;height:auto;background:var(--background)}@media print{.mermaid svg{min-width:0;max-width:100%}}
+
+/* Set label hierarchy before rendering so Mermaid measures the styled text. */
+.mermaid .nodeLabel{color:var(--color-muted-foreground);font-size:13px;line-height:1.6}
+.mermaid .nodeLabel b{display:inline-block;color:var(--color-foreground);font-size:15px;font-weight:600;padding-bottom:4px}
+
+:root{--code-background:#ededed;--code-border:#c8c8c8}
+@media(prefers-color-scheme:dark){:root{--code-background:#202020;--code-border:#484848}}
+
+.typeset :not(pre)>code{background:var(--code-background);border:1px solid var(--code-border);color:var(--color-foreground);padding:.125em .35em}
+</style>
+</head>
+<body>
+<main class="typeset typeset-report">
+  <header>
+    <h1>Canvid PWA + Companion Extension MVP</h1>
+    <p class="lede">The source report describes Canvid running as an installable hosted web app while delegating privileged Chrome APIs to a small companion extension. The existing Electron and full Chrome extension paths remain intact.</p>
+    <div class="meta">
+      <span class="pill good">MVP implemented · source report</span>
+      <span class="pill">PWA build</span>
+      <span class="pill">Manifest V3 companion</span>
+      <span class="pill">Secure external messaging</span>
+      <span class="pill">Local dev workflow</span>
+    </div>
+  </header>
+
+  <h2>Decision</h2>
+  <div class="grid grid-cols-1 min-[640px]:grid-cols-2 gap-4">
+    <section class="card">
+      <h3>App responsibility</h3>
+      <p>The hosted PWA owns React UI, media processing, project state, OPFS storage, network requests, and normal browser APIs.</p>
+    </section>
+    <section class="card">
+      <h3>Extension responsibility</h3>
+      <p>The companion owns only APIs unavailable to a normal web page: desktop capture selection, system information, and Chrome window control.</p>
+    </section>
+  </div>
+
+  <h2>Runtime architecture</h2>
+  <figure class="not-typeset" aria-label="Runtime architecture">
+    <div class="diagram" tabindex="0" role="region" aria-label="PWA and companion message flow">
+      <pre class="mermaid">flowchart LR
+        pwa("&lt;b&gt;Canvid PWA&lt;/b&gt;&lt;br/&gt;React UI + browser bridge&lt;br/&gt;OPFS project storage&lt;br/&gt;Recording and processing&lt;br/&gt;PWA manifest + service worker")
+        companion("&lt;b&gt;Companion extension&lt;/b&gt;&lt;br/&gt;Manifest V3 service worker&lt;br/&gt;Origin allowlist + action validation&lt;br/&gt;Sender tab and window scope")
+        chrome("&lt;b&gt;Chrome APIs&lt;/b&gt;&lt;br/&gt;desktopCapture&lt;br/&gt;system.display&lt;br/&gt;system.cpu / memory&lt;br/&gt;windows")
+        pwa -->|Typed action · sendMessage| companion
+        companion -->|Scoped API call| chrome
+        chrome -->|Result| companion
+        companion -->|Serializable response| pwa</pre>
+    </div>
+    <figcaption class="caption mt-3">The PWA initiates contact. The companion validates the request, calls Chrome APIs, and returns a serializable result.</figcaption>
+  </figure>
+
+  <h2>Implemented bridge actions</h2>
+  <div class="typeset-scroll" tabindex="0" role="region" aria-label="Scrollable report table"><table>
+    <thead><tr><th>Action</th><th>Purpose</th><th>Scope and safety</th></tr></thead>
+    <tbody>
+      <tr><td><code>ping</code></td><td>Startup handshake and extension presence check.</td><td>PWA will show an extension-required screen if the call fails.</td></tr>
+      <tr><td><code>choose-desktop-media</code></td><td>Opens Chrome's screen, window, or tab picker.</td><td>Bound to the external message sender tab.</td></tr>
+      <tr><td><code>system-display</code></td><td>Returns display geometry and scaling.</td><td>Read-only system API.</td></tr>
+      <tr><td><code>system-cpu</code> / <code>system-memory</code></td><td>Returns browser-visible device information.</td><td>Read-only system APIs.</td></tr>
+      <tr><td><code>minimize-current-window</code></td><td>Minimizes Canvid when recording starts.</td><td>Can only target the sender tab's window.</td></tr>
+      <tr><td><code>get-current-window</code></td><td>Detects restoration and preserves recording auto-stop behavior.</td><td>Can only read the sender tab's window.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Build and development workflow</h2>
+  <div class="grid grid-cols-1 min-[640px]:grid-cols-2 gap-4">
+    <section class="card">
+      <h3>Local development</h3>
+      <pre><code>pnpm dev:pwa</code></pre>
+      <p>This first rebuilds the localhost companion, then starts the PWA at <code>127.0.0.1:5173</code>. Load <code>dist-companion</code> as an unpacked extension and reload it after service-worker changes.</p>
+    </section>
+    <section class="card">
+      <h3>Production artifacts</h3>
+      <pre><code>pnpm build:pwa
+pnpm build:companion-ext</code></pre>
+      <p>The artifacts are written separately to <code>dist-pwa</code> and <code>dist-companion</code>, so neither package accidentally contains the other.</p>
+    </section>
+  </div>
+
+  <h2>Identity and connection rules</h2>
+  <ol>
+    <li>The companion manifest contains a stable public key, which gives unpacked development builds a deterministic extension ID.</li>
+    <li>The PWA calls that exact extension ID. A Web Store ID can replace it through <code>VITE_COMPANION_EXTENSION_ID</code>.</li>
+    <li><code>externally_connectable.matches</code> limits which PWA origin can call the extension.</li>
+    <li>Local development uses <code>http://127.0.0.1/*</code>. Production uses the configured HTTPS app hostname.</li>
+    <li>The extension cannot initiate first contact. Canvid performs the handshake during startup.</li>
+  </ol>
+
+  <h2>Problems found during the MVP</h2>
+  <div class="typeset-scroll" tabindex="0" role="region" aria-label="Scrollable report table"><table>
+    <thead><tr><th>Failure</th><th>Root cause</th><th>Resolution</th></tr></thead>
+    <tbody>
+      <tr><td>Missing-extension screen crashed.</td><td>It rendered <code>Trans</code> before the normal app providers loaded.</td><td>Load the current locale and wrap the standalone screen with <code>I18nProvider</code>.</td></tr>
+      <tr><td>Installed extension was not detected.</td><td>The dev PWA had no extension ID, and the companion allowlist did not include localhost.</td><td>Stable dev ID, automatic dev companion build, and a localhost origin match.</td></tr>
+      <tr><td><code>getManifest is not a function</code>.</td><td>Web pages get a limited <code>chrome.runtime</code> surface, not the full extension runtime.</td><td>Feature-detect <code>getManifest</code> and fall back to the web version label.</td></tr>
+      <tr><td><code>chrome.windows.getCurrent</code> was undefined.</td><td>Recording code called an extension-only API directly from the PWA.</td><td>Route minimize and restore polling through the companion.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Reported verification</h2>
+<p class="small">These results come from the original MVP report. Builds and tests were not rerun for this document refresh.</p>
+  <ul>
+    <li>PWA production build completes.</li>
+    <li>Companion production and localhost builds complete.</li>
+    <li>Companion messaging checks pass, including a runtime with messaging but no <code>chrome.windows</code>.</li>
+    <li>Browser bridge checks pass, including a runtime with messaging but no <code>getManifest</code>.</li>
+    <li>Focused test run reported in the source: <strong>17/17 passing</strong>.</li>
+  </ul>
+
+  <h2>Known MVP limits</h2>
+  <div class="note">
+    <strong>This is a connected PWA, not a standalone web-only recorder.</strong> Users must install both the PWA and companion extension. The PWA cannot install the extension silently.
+  </div>
+  <ul>
+    <li>The service worker establishes installability but does not cache the full app for offline use.</li>
+    <li>Extension service-worker changes require reloading the unpacked extension during development.</li>
+    <li>The production extension ID and final hosted origin must be set as part of release packaging.</li>
+    <li>Chrome Web Store packaging, install guidance, update rollout, and end-to-end release automation remain follow-up work.</li>
+  </ul>
+
+  <h2>Recommended next slice</h2>
+  <ol>
+    <li>Exercise one complete recording in PWA mode: choose source, record, restore, stop, edit, export.</li>
+    <li>Add an install link and clearer recovery UI to the extension-required screen.</li>
+    <li>Publish a private/unlisted companion build and lock the production origin and ID.</li>
+    <li>Only then decide whether offline asset caching is worth its update complexity.</li>
+  </ol>
+
+  <footer><p>Layout refreshed 5 September 2026. Technical content retained from the <a href="https://cvpcasada.github.io/agent-plans/drafts/41d01af69241/v1/" rel="noopener noreferrer">original MVP report</a>.</p><p>Reference: <a href="https://developer.chrome.com/docs/iwa/connect-to-extensions" rel="noopener noreferrer">Chrome: Connect PWAs and IWAs with Chrome Extensions</a>.</p></footer>
+</main>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  const preference = window.matchMedia("(prefers-color-scheme: dark)");
+  const diagrams = [...document.querySelectorAll(".mermaid")].map((node) => ({
+    node,
+    source: node.textContent,
+  }));
+  function token(name, fallback) {
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      .trim();
+    return value || fallback;
+  }
+  function themeVariables() {
+    const background = token("--background", "#fff");
+    const foreground = token("--color-foreground", "#171717");
+    const muted = token("--color-muted", "#f4f4f4");
+    const mutedFg = token("--color-muted-foreground", "#5c5c5c");
+    const border = token("--color-border", "#e2e2e2");
+    return {
+      background,
+      fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      fontSize: "13px",
+      primaryColor: muted,
+      primaryTextColor: foreground,
+      primaryBorderColor: border,
+      lineColor: mutedFg,
+      secondaryColor: background,
+      tertiaryColor: muted,
+      textColor: foreground,
+      mainBkg: background,
+      clusterBkg: background,
+      clusterBorder: border,
+      titleColor: mutedFg,
+      edgeLabelBackground: background,
+      noteBkgColor: muted,
+      noteTextColor: mutedFg,
+      noteBorderColor: border,
+      actorBkg: muted,
+      actorBorder: border,
+      actorTextColor: foreground,
+      actorLineColor: border,
+      signalColor: mutedFg,
+      signalTextColor: foreground,
+    };
+  }
+  function polish(svg) {
+    const background = token("--background", "#fff");
+    const muted = token("--color-muted", "#f4f4f4");
+    const mutedFg = token("--color-muted-foreground", "#5c5c5c");
+    const border = token("--color-border", "#e2e2e2");
+    const foreground = token("--color-foreground", "#171717");
+    if (!svg.id) return;
+    const id = `#${CSS.escape(svg.id)}`;
+    svg.querySelectorAll("rect").forEach((rect) => {
+      const parentClass = rect.parentElement?.getAttribute("class") || "";
+      rect.setAttribute("rx", parentClass.includes("cluster") ? "10" : "8");
+      rect.setAttribute("ry", parentClass.includes("cluster") ? "10" : "8");
+    });
+    const style = document.createElement("style");
+    style.textContent = `
+      ${id} { background: ${background}; }
+      ${id} .node rect, ${id} .node .label-container, ${id} .basic {
+        fill: ${muted}; stroke: ${border}; stroke-width: 1px;
+      }
+      ${id} .nodeLabel, ${id} .nodeLabel p { color: ${mutedFg}; font-size: 13px; line-height: 1.6; }
+      ${id} .nodeLabel b { display: inline-block; color: ${foreground}; font-size: 15px; font-weight: 600; padding-bottom: 4px; }
+      ${id} .cluster rect { fill: ${background}; stroke: ${border}; }
+      ${id} .cluster-label span, ${id} .cluster span {
+        font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+        text-transform: uppercase; color: ${mutedFg};
+      }
+      ${id} .edgeLabel, ${id} .edgeLabel p {
+        background-color: ${background}; color: ${mutedFg};
+      }
+      ${id} .actor { fill: ${muted}; stroke: ${border}; }
+      ${id} text.actor { fill: ${foreground}; }
+      ${id} .note { fill: ${muted}; stroke: ${border}; }
+      ${id} .actor-line, ${id} .loopLine {
+        stroke: ${border}; stroke-dasharray: 4 5;
+      }
+    `;
+    svg.appendChild(style);
+  }
+  async function renderDiagrams() {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "strict",
+      themeVariables: themeVariables(),
+      flowchart: { curve: "linear", padding: 18, htmlLabels: true },
+      sequence: { mirrorActors: false, useMaxWidth: true, wrap: true },
+    });
+    for (const { node, source } of diagrams) {
+      node.removeAttribute("data-processed");
+      node.textContent = source;
+    }
+    await mermaid.run({ nodes: diagrams.map(({ node }) => node) });
+    document.querySelectorAll(".mermaid svg").forEach(polish);
+  }
+  await renderDiagrams();
+  preference.addEventListener("change", renderDiagrams);
+</script>
+</body>
+</html>
